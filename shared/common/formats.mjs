@@ -1,4 +1,5 @@
 import { LIMITS, requireJobId, sourcesOf, StudioError, validSourcePath } from './core.mjs';
+import { CHAT_LIMIT, CHAT_SOURCE } from './sources.mjs';
 import { docx, pdf, pptx, xlsx } from './documents.mjs';
 import { flashcards } from './flashcards.mjs';
 import { infographic } from './infographic.mjs';
@@ -76,26 +77,23 @@ export const CHOICES = Object.freeze({
 
 export const defaultChoice = (key) => CHOICES[key]?.options.find((option) => option.default)?.id ?? null;
 
-export function validateJob(input) {
+// Checks what the panel sends: which files (by path), whether to add this chat, and the options.
+// File text is read by the service; tests and older callers may still pass `content` inline.
+export function validateRequest(input) {
   if (!input || typeof input !== 'object') throw new StudioError('BAD_INPUT', 'A Studio request is required.');
   requireJobId(input.id);
   const format = formatFor(input.format);
   const offered = sourcesOf(input);
-  if (!Array.isArray(offered) || !offered.length) throw new StudioError('BAD_SOURCE', 'Choose at least one source.');
-  if (offered.length > LIMITS.sources) throw new StudioError('TOO_MANY_SOURCES', `Choose at most ${LIMITS.sources} sources.`);
+  const chat = input.chat === true;
+  if (!Array.isArray(offered) || (!offered.length && !chat)) throw new StudioError('BAD_SOURCE', 'Choose at least one source.');
+  if (offered.length > LIMITS.sources) throw new StudioError('TOO_MANY_SOURCES', `Choose at most ${LIMITS.sources} files.`);
   const seen = new Set();
   const sources = offered.map((source) => {
-    if (!validSourcePath(source?.path) || seen.has(source.path)) throw new StudioError('BAD_SOURCE', 'Choose project-relative .md or .txt files.');
+    if (!validSourcePath(source?.path) || seen.has(source.path)) throw new StudioError('BAD_SOURCE', 'Choose supported files inside this project.');
     seen.add(source.path);
-    const content = source.content;
-    if (typeof content !== 'string' || !content.trim()) throw new StudioError('EMPTY_SOURCE', `${source.path} is empty.`);
-    if (content.includes('\0')) throw new StudioError('BAD_SOURCE', `${source.path} is not a plain text file.`);
-    return { path: source.path, content };
+    if (source.content !== undefined && typeof source.content !== 'string') throw new StudioError('BAD_SOURCE', `${source.path} is not text.`);
+    return source.content === undefined ? { path: source.path } : { path: source.path, content: source.content };
   });
-  const total = sources.reduce((sum, source) => sum + source.content.length, 0);
-  if (total > LIMITS.source) {
-    throw new StudioError('SOURCE_TOO_LARGE', `The selected sources have ${total.toLocaleString('en-US')} characters; this build accepts ${LIMITS.source.toLocaleString('en-US')}. Nothing was truncated; select fewer or smaller sources.`);
-  }
   const instructions = input.instructions ?? '';
   if (typeof instructions !== 'string' || instructions.length > LIMITS.instructions) {
     throw new StudioError('BAD_INSTRUCTIONS', `Instructions must be at most ${LIMITS.instructions} characters.`);
@@ -109,14 +107,37 @@ export function validateJob(input) {
   }
   if (JSON.stringify(input).length > LIMITS.request) throw new StudioError('REQUEST_TOO_LARGE', 'The encoded request exceeds the host bridge limit. Nothing was truncated.');
   return {
-    id: input.id,
-    format: format.key,
+    id: input.id, format: format.key, sources, chat, instructions, choice: picked,
+    model: { providerID: input.model.providerID, id: input.model.id, ...(input.model.variant ? { variant: input.model.variant } : {}) },
+  };
+}
+
+// The full input for a model call, once every source's text is known. `sources` may include the
+// chat (path CHAT_SOURCE). Over-limit input is refused; nothing is truncated.
+export function validateJob(input) {
+  const all = sourcesOf(input);
+  const chatSource = all.find((source) => source.path === CHAT_SOURCE);
+  const files = all.filter((source) => source.path !== CHAT_SOURCE);
+  // The bridge-size check applies to what the panel sends, so it runs on paths only.
+  const request = validateRequest({ ...input, source: undefined, sources: files.map(({ path }) => ({ path })), chat: Boolean(chatSource) });
+  const sources = [...files, ...(chatSource ? [chatSource] : [])].map((source) => {
+    const content = source.content;
+    if (typeof content !== 'string' || !content.trim()) throw new StudioError('EMPTY_SOURCE', `${source.path === CHAT_SOURCE ? 'This chat' : source.path} is empty.`);
+    if (content.includes('\0')) throw new StudioError('BAD_SOURCE', `${source.path} is not a plain text file.`);
+    if (source.path === CHAT_SOURCE && content.length > CHAT_LIMIT) throw new StudioError('CHAT_TOO_LARGE', 'The chat summary is longer than allowed.');
+    return { path: source.path, content };
+  });
+  if (!sources.length) throw new StudioError('BAD_SOURCE', 'Choose at least one source.');
+  const total = sources.reduce((sum, source) => sum + source.content.length, 0);
+  if (total > LIMITS.source) {
+    throw new StudioError('SOURCE_TOO_LARGE', `The selected sources have ${total.toLocaleString('en-US')} characters; this build accepts ${LIMITS.source.toLocaleString('en-US')}. Nothing was truncated; select fewer or smaller sources.`);
+  }
+  const options = CHOICES[request.format]?.options ?? [];
+  return {
+    ...request,
     sources,
     // Kept for callers that read one source: the first, or a combined label.
     source: sources.length === 1 ? sources[0] : { path: `${sources[0].path} + ${sources.length - 1} more`, content: sources.map((source) => source.content).join('\n\n') },
-    instructions,
-    choice: picked,
-    preference: options.find((option) => option.id === picked)?.hint ?? '',
-    model: { providerID: input.model.providerID, id: input.model.id, ...(input.model.variant ? { variant: input.model.variant } : {}) },
+    preference: options.find((option) => option.id === request.choice)?.hint ?? '',
   };
 }

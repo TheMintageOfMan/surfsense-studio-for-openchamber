@@ -34,7 +34,7 @@ async function completed(jobs, root, id) {
 test('source validation rejects traversal and oversized input instead of truncating it', () => {
   const input = request();
   assert.equal(validateJob(input).source.content, source);
-  for (const unsafe of ['../SPEC.md', '/SPEC.md', 'C:/SPEC.md', 'folder\\SPEC.md', 'SPEC.pdf']) {
+  for (const unsafe of ['../SPEC.md', '/SPEC.md', 'C:/SPEC.md', 'folder\\SPEC.md', 'SPEC.exe']) {
     assert.throws(() => validateJob({ ...input, source: { path: unsafe, content: source } }), { code: 'BAD_SOURCE' });
   }
   assert.throws(() => validateJob({ ...input, source: { path: 'SPEC.md', content: source.repeat(Math.ceil(LIMITS.source / source.length) + 1) } }), { code: 'SOURCE_TOO_LARGE' });

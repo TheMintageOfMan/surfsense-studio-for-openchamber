@@ -21,6 +21,7 @@ export const ICONS = {
   stop: svg('<rect x="7" y="7" width="10" height="10" rx="1.5"/>'),
   retry: svg('<path d="M4 12a8 8 0 1 1 2.3 5.7M4 20v-5h5"/>'),
   file: svg('<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>'),
+  chat: svg('<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>'),
 };
 
 // Friendly names, colors and one-line descriptions for the tiles. Grid order follows FORMATS.

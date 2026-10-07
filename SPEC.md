@@ -105,7 +105,7 @@ A podcast additionally requires the audio pack and a two-speaker brief/voice sel
 
 ## 6. Sources and grounding
 
-The initial source contract is normalized text plus a title and source locator. The proposed initial inputs are text/Markdown project files and explicitly selected message/session snapshots. Arbitrary PDF/Office ingestion is not implied by support for generating those output formats; additional input parsers must be explicitly included and packaged.
+The source contract is normalized text plus a source locator. Implemented inputs: project files read by the service (text and data formats, HTML, DOCX via Mammoth, PDF via PDF.js with no OCR, PPTX and XLSX via the bundled ZIP reader) and the current chat only. A chat over 10,000 characters is sent as compressed context: OpenCode's own compaction summary when it fits, otherwise a summary from OpenCode's non-mutating session generation (POST /api/session/:id/generate). Arbitrary PDF/Office ingestion is not implied by support for generating those output formats; additional input parsers must be explicitly included and packaged.
 
 - Read only sources the user selected or explicitly granted to the extension. Opening a panel does not grant unrestricted conversation access.
 - Use OpenChamber's message/session actions and conversation capability for session content. Detect and disclose incomplete or truncated host snapshots.

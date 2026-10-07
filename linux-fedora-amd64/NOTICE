@@ -14,7 +14,7 @@ is used. SurfSense publishes no NOTICE file at that commit.
 
 The distributed platform folders bundle third-party JavaScript packages under
 their own licenses (MIT, ISC, BSD-2-Clause, BSD-3-Clause, 0BSD, Zlib, and
-Apache-2.0; DOMPurify is used under Apache-2.0 and JSZip under MIT, from their
+Apache-2.0, including PDF.js by Mozilla, which publishes no NOTICE file; DOMPurify is used under Apache-2.0 and JSZip under MIT, from their
 dual licenses). Their license texts are reproduced in each folder's
 THIRD-PARTY-LICENSES.txt.
 

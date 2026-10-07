@@ -1,3 +1,5 @@
+import { CHAT_SOURCE, sourceKind } from './sources.mjs';
+
 export const LIMITS = Object.freeze({
   // Total characters across all selected sources.
   source: 32_000,
@@ -25,7 +27,7 @@ export function validSourcePath(value) {
   return typeof value === 'string' && value.length > 0 && value.length <= 1024
     && !/[\\:\0]/.test(value) && !value.startsWith('/')
     && value.split('/').every((part) => part && part !== '..' && part !== '.')
-    && /\.(md|txt)$/i.test(value);
+    && sourceKind(value) !== null;
 }
 
 export function requireJobId(id) {
@@ -65,7 +67,7 @@ export const sourcesOf = (input) => input.sources ?? (input.source ? [input.sour
 
 export function sourcePayload(input) {
   return JSON.stringify({
-    sources: sourcesOf(input).map((source) => ({ path: source.path, content: source.content })),
+    sources: sourcesOf(input).map((source) => ({ path: source.path === CHAT_SOURCE ? 'the current chat conversation' : source.path, content: source.content })),
     focus: input.instructions ?? '',
     preference: input.preference ?? '',
   });
