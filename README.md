@@ -1,6 +1,6 @@
 # SurfSense Studio for OpenChamber v2
 
-Turn your notes into study material and documents with one tap. SurfSense Studio is an independent, optional extension for [OpenChamber](https://github.com/openchamber/openchamber). It takes the `.md` and `.txt` files in a project and makes summaries, flashcards, quizzes, mind maps, web pages, Word reports, slide decks, spreadsheets, PDFs and infographics from them, using the AI models you already have in OpenChamber.
+Turn your notes into study material and documents with one tap. SurfSense Studio is an independent, optional extension for [OpenChamber](https://github.com/openchamber/openchamber). It takes the documents in a project (text, Markdown, Word, PDF, PowerPoint, Excel, CSV, JSON, web pages and more) and, if you like, the current chat, and makes summaries, flashcards, quizzes, mind maps, web pages, Word reports, slide decks, spreadsheets, PDFs and infographics from them, using the AI models you already have in OpenChamber.
 
 It is built for anyone aged ten and up who is not technical: pick your files, tap a tile, open the result, save it. Studio chooses sensible defaults and quietly recovers from most problems.
 
@@ -8,6 +8,7 @@ It is built for anyone aged ten and up who is not technical: pick your files, ta
 
 ## Contents
 
+- [What it reads](#what-it-reads)
 - [What it makes](#what-it-makes)
 - [Install](#install)
 - [Use](#use)
@@ -18,6 +19,22 @@ It is built for anyone aged ten and up who is not technical: pick your files, ta
 - [Project status](#project-status)
 - [Acknowledgements](#acknowledgements)
 - [License](#license)
+
+## What it reads
+
+| Source | File types | How the text is read |
+|---|---|---|
+| Text and data | `.md`, `.markdown`, `.txt`, `.text`, `.csv`, `.tsv`, `.json`, `.jsonl`, `.xml`, `.yaml`, `.yml`, `.log`, `.ini`, `.toml` | As written (UTF-8) |
+| Web pages | `.html`, `.htm` | Readable text only; scripts and styles are dropped |
+| Word | `.docx` | [Mammoth](https://github.com/mwilliamson/mammoth.js) |
+| PDF | `.pdf` | [PDF.js](https://github.com/mozilla/pdf.js) text, page by page |
+| PowerPoint | `.pptx` | Slide text and speaker notes, in slide order |
+| Excel | `.xlsx` | Every sheet, row by row |
+| This chat | The OpenChamber chat Studio is open beside | See below |
+
+Studio looks in the project folder and up to two folders down, skipping tool folders such as `node_modules` and boilerplate such as license files. A file it cannot use is still listed, greyed out, with the reason: for example a scanned PDF with no text, a password-protected file or a damaged one.
+
+**This chat.** The current chat (only this one, and only when ticked) can be a source. Studio reads the chat's words, not its tool output. A chat of up to 10,000 characters goes as it is. If OpenCode has already compacted the chat, Studio uses OpenCode's own summary plus the messages after it. A longer chat is shortened first: Studio asks OpenCode to summarize it from the session's context. That uses the chat's model, may be billed, and never changes the chat itself. **About this** says when this happened.
 
 ## What it makes
 
@@ -54,7 +71,7 @@ Keep the folder where it is: OpenChamber runs the extension from that location. 
 ## Use
 
 1. Open a chat in a project, then open **SurfSense Studio** from the right-hand rail.
-2. Under **Sources**, tick the files to use. Studio ticks a sensible set for you and remembers your choice. It will not let you tick more text than it can send.
+2. Under **Sources**, tick the files to use, and **This chat** if you want the conversation included. Studio ticks a sensible set of files for you and remembers your choice. It will not let you tick more text than it can send.
 3. Tap a tile to make something with the default settings. Or tap the tile's pencil to choose one simple option and, if you like, say what to focus on.
 4. Your item appears under **Your creations** with a spinner, then a "ready" message. You can make up to three things at once.
 5. Tap an item to open it. Tap **Save** to put a copy in the project folder, named after its title, such as `Planets quiz.md` or `How a seed grows.png`. Saving never overwrites a file; a second copy becomes `(2)`.
@@ -71,7 +88,7 @@ Studio has two parts, both shipped in the platform folder and run by OpenChamber
 
 When you tap a tile:
 
-1. The panel reads the ticked files and sends them, with your choice and focus, to the service.
+1. The panel sends the ticked file names, with your choice and focus, to the service. The service reads the files itself, so it can open PDFs and Office files that the sandboxed panel cannot. It also reads the chat if ticked, shortening it through OpenCode when it is long.
 2. The service asks the AI model for a structured reply (JSON for most formats) through OpenChamber's local connection to OpenCode. It never reads or stores credentials.
 3. The service checks the reply strictly. Anything incomplete or over a limit is dropped or shortened, and every change is listed under **About this**. Nothing the model writes is ever run as code.
 4. If the reply is unusable, Studio quietly tries again: the chosen model twice, then the recommended model once. That is at most three AI calls per tap, and every try is recorded.
@@ -89,13 +106,14 @@ Infographic PNGs are drawn in the panel, because the library places text in a wa
 
 ## Privacy and network use
 
-- **Your files** go only to the AI model you chose (or Automatic picked), through your local OpenChamber and OpenCode connection. Your model provider's terms and charges apply. Studio adds no telemetry.
+- **Your files and the chat** (only when ticked) go only to the AI model you chose (or Automatic picked), through your local OpenChamber and OpenCode connection. A long chat is first summarized by OpenCode with the chat's own model. Your model provider's terms and charges apply. Studio adds no telemetry.
 - **Infographic icons** are looked up by keyword on AntV's icon service (`weavefox.cn`). Only the single icon word the model chose, such as `leaf`, is sent; your documents are not. Without a connection the infographic is drawn without icons.
 - Studio works only with OpenChamber on the same computer. Password-protected, remote and relay hosts are not supported, and Studio never bypasses authentication.
 
 ## Limits and known issues
 
-- Selected sources can total 32,000 characters, up to 20 files. Studio refuses rather than cutting a source short.
+- Selected sources can total 32,000 characters of text, up to 20 files; the chat counts as at most 10,000. Studio refuses rather than cutting a source short. (The panel now sends only file names, so this limit can be raised later.)
+- No OCR: a scanned PDF has no text to read. Old binary Office formats (`.doc`, `.ppt`, `.xls`) and files over 25 MB are not read. Excel dates appear as Excel's day numbers. PDFs in East Asian scripts may lack text because PDF.js character maps are not bundled.
 - **Automatic** uses a model verified with every format when one is available (GPT-6 Astra Ultrafast on the test machine). Otherwise it uses the chat's model without a reasoning variant. A Claude Opus 5.5 run at variant `max` returned empty text for structured formats through OpenCode's stateless route.
 - PowerPoint and Excel files name the Inter font but cannot carry it, so those apps substitute a font where Inter is not installed. Word, PDF, web pages and infographics carry Inter with them.
 - PDF characters Inter cannot draw, such as emoji, appear as `?` and are listed under **About this**.
@@ -128,7 +146,7 @@ npm run build   # rebuilds windows-11-x64/ and linux-fedora-amd64/
 ## Project status
 
 **Checked live on Windows** through the installed extension:
-- All ten formats generated from real project files.
+- All ten formats generated from real project files, including PDF, Word, PowerPoint, CSV, HTML and the current chat (compressed by OpenCode).
 - Previews, study progress, history, quiet recovery, and saving.
 - Word, PowerPoint and Excel files opened in Microsoft Office without repair. Exported files matched the stored files byte for byte (MD5).
 - Infographic PNG and SVG saving.
@@ -172,6 +190,9 @@ Studio stands on the work of many people. Thank you all.
 - [Markmap](https://github.com/markmap/markmap) by Gerald Liu (MIT).
 - [marked](https://github.com/markedjs/marked) by Christopher Jeffrey and the MarkedJS team (MIT).
 - [DOMPurify](https://github.com/cure53/DOMPurify) by Mario Heiderich and Cure53 (used under Apache-2.0).
+- [PDF.js](https://github.com/mozilla/pdf.js) by Mozilla and contributors (Apache-2.0).
+- [Mammoth](https://github.com/mwilliamson/mammoth.js) by Michael Williamson (BSD-2-Clause), with its helpers [lop](https://github.com/mwilliamson/lop), [dingbat-to-unicode](https://github.com/mwilliamson/dingbat-to-unicode), [@xmldom/xmldom](https://github.com/xmldom/xmldom), [Underscore](https://github.com/jashkenas/underscore) and [xmlbuilder](https://github.com/oozcitak/xmlbuilder-js).
+- [entities](https://github.com/fb55/entities) by Felix Boehm (BSD-2-Clause).
 - Many smaller packages, each listed with its full license text in the platform folder's `THIRD-PARTY-LICENSES.txt`.
 
 **Font**

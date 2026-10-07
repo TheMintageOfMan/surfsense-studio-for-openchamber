@@ -1,7 +1,9 @@
 import http from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 import { LIMITS, modelKey, requireJobId, StudioError } from '../common/core.mjs';
-import { validateJob } from '../common/formats.mjs';
+import { validateRequest } from '../common/formats.mjs';
+import { measureChat } from './chat.mjs';
+import { listSources } from './sources.mjs';
 import { StudioJobs } from './jobs.mjs';
 import { projectDirectory } from './storage.mjs';
 
@@ -51,6 +53,15 @@ export function createStudioServer({ token, gateway, jobs = new StudioJobs() }) 
         json(response, 200, await gateway.describe(context));
         return;
       }
+      if (request.method === 'GET' && url.pathname === '/sources') {
+        // The chat is offered only when the active session can be read; any problem just hides it.
+        const [files, chat] = await Promise.all([
+          listSources(directory),
+          gateway.prepare(context).then(measureChat).catch(() => ({ available: false })),
+        ]);
+        json(response, 200, { files, chat });
+        return;
+      }
       if (request.method === 'GET' && url.pathname === '/jobs') {
         const offset = Number(url.searchParams.get('offset') ?? 0);
         if (!Number.isSafeInteger(offset) || offset < 0) throw new StudioError('BAD_OFFSET', 'Invalid history page.');
@@ -58,14 +69,14 @@ export function createStudioServer({ token, gateway, jobs = new StudioJobs() }) 
         return;
       }
       if (request.method === 'POST' && url.pathname === '/jobs') {
-        const input = validateJob(body);
+        const input = validateRequest(body);
         const connection = await gateway.prepare(context);
         if (!connection.models.some((model) => model.key === modelKey(input.model))) {
           throw new StudioError('NO_MODEL', 'This model is no longer available. Refresh the connection and select a model.');
         }
         // The recommended model doubles as the quiet fallback when the chosen one keeps failing.
         const fallback = connection.models.find((model) => model.key === connection.recommendedModelKey)?.ref ?? null;
-        const record = await jobs.start(directory, input, connection.generate, { fallback });
+        const record = await jobs.start(directory, body, connection.generate, { fallback, connection });
         json(response, 202, jobs.public(record));
         return;
       }

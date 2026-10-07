@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto';
 import { LIMITS, modelKey, StudioError } from '../common/core.mjs';
-import { formatFor, validateJob } from '../common/formats.mjs';
+import { formatFor, validateJob, validateRequest } from '../common/formats.mjs';
+import { CHAT_SOURCE } from '../common/sources.mjs';
+import { chatSource } from './chat.mjs';
+import { readSourceOrExplain } from './sources.mjs';
 import { buildFile, fileMeta } from './builders/index.mjs';
 import { embeddedFontCss } from './fonts.mjs';
 import { exportFile, exportUnique, listRecords, readArtifactFile, readRecord, writeArtifactFile, writeRecord } from './storage.mjs';
@@ -24,12 +27,14 @@ export class StudioJobs {
   #uploads = new Map();
 
   // `fallback` is an optional known-good model used once if the chosen model keeps failing.
-  async start(directory, raw, generate, { fallback = null } = {}) {
-    const input = validateJob(raw);
-    const format = formatFor(input.format);
-    const fingerprint = digest(JSON.stringify(input));
+  // `connection` supplies the chat when the request ticks it. File text is read here, in the
+  // job, so the panel sends only paths and slow reads (PDFs, chat summaries) never block it.
+  async start(directory, raw, generate, { fallback = null, connection = null } = {}) {
+    const request = validateRequest(raw);
+    const format = formatFor(request.format);
+    const fingerprint = digest(JSON.stringify(request));
     try {
-      const previous = await this.get(directory, input.id);
+      const previous = await this.get(directory, request.id);
       if (previous.fingerprint !== fingerprint) throw new StudioError('JOB_CONFLICT', 'This job identifier belongs to another request.', 409);
       return previous;
     } catch (error) {
@@ -38,12 +43,14 @@ export class StudioJobs {
     if ([...this.#active.values()].filter((job) => sameDirectory(job.directory, directory)).length >= PARALLEL) {
       throw new StudioError('BUSY', `Studio is already making ${PARALLEL} things in this project. Wait for one to finish.`, 409);
     }
-    const sources = input.sources.map((source) => ({ path: source.path, characters: source.content.length, md5: digest(source.content) }));
+    const label = [...request.sources.map((source) => source.path), ...(request.chat ? ['this chat'] : [])];
     const record = {
-      version: 1, id: input.id, format: format.key, status: 'queued',
+      version: 1, id: request.id, format: format.key, status: 'queued',
       createdAt: new Date().toISOString(), ownerPid: process.pid, fingerprint,
-      source: sources.length === 1 ? sources[0] : { path: input.source.path, characters: input.source.content.length, md5: digest(input.source.content) },
-      sources, instructions: input.instructions, choice: input.choice, model: input.model, requestedModel: input.model, attempts: [],
+      // Filled in with sizes and MD5s once the sources are read.
+      source: { path: label.length === 1 ? label[0] : `${label[0]} + ${label.length - 1} more` },
+      sources: request.sources.map((source) => ({ path: source.path })), chat: request.chat ? { how: 'pending' } : null,
+      instructions: request.instructions, choice: request.choice, model: request.model, requestedModel: request.model, attempts: [],
       title: null, markdown: null, artifact: null, notes: [], file: null, progress: null, savedPath: null, error: null,
     };
     const controller = new AbortController();
@@ -55,8 +62,31 @@ export class StudioJobs {
       this.#active.delete(record.id);
       throw error;
     }
-    job.finished = this.#run(job, input, format, generate, fallback);
+    job.finished = this.#run(job, request, format, generate, fallback, connection);
     return this.public(record);
+  }
+
+  // Reads every ticked file (and the chat) into the model input. A file that cannot be read
+  // stops the job with a message naming it; nothing is skipped silently.
+  async #resolve(job, request, connection) {
+    const { directory, record, controller } = job;
+    const sources = [];
+    for (const source of request.sources) {
+      if (source.content !== undefined) { sources.push(source); continue; }
+      const { text, error } = await readSourceOrExplain(directory, source.path);
+      if (error) throw new StudioError(error.code, error.message);
+      sources.push({ path: source.path, content: text });
+    }
+    if (request.chat) {
+      if (!connection) throw new StudioError('NO_CHAT', 'Open the chat in OpenChamber to include it.');
+      const chat = await chatSource(connection, controller.signal);
+      record.chat = { how: chat.how, characters: chat.characters, md5: chat.md5, ...(chat.fullCharacters ? { fullCharacters: chat.fullCharacters } : {}) };
+      sources.push({ path: CHAT_SOURCE, content: chat.content });
+    }
+    const input = validateJob({ ...request, sources });
+    record.sources = input.sources.filter((source) => source.path !== CHAT_SOURCE).map((source) => ({ path: source.path, characters: source.content.length, md5: digest(source.content) }));
+    record.source = { ...record.source, characters: input.source.content.length, md5: digest(input.source.content) };
+    return input;
   }
 
   // One model call, parsed and built. Throws a StudioError describing what went wrong.
@@ -92,17 +122,23 @@ export class StudioJobs {
     }
   }
 
-  async #run(job, input, format, generate, fallback) {
+  async #run(job, request, format, generate, fallback, connection) {
     const { directory, record, controller } = job;
     // Recover quietly: the chosen model gets a second try, then a known-good model gets one.
     // At most three billable calls per request; every attempt is recorded for the details view.
-    const plan = [input.model, input.model];
-    if (fallback && modelKey(fallback) !== modelKey(input.model)) plan.push(fallback);
+    const plan = [request.model, request.model];
+    if (fallback && modelKey(fallback) !== modelKey(request.model)) plan.push(fallback);
     let lastError = null;
     try {
       record.status = 'running';
       await writeRecord(directory, record);
-      for (let index = 0; index < plan.length; index += 1) {
+      let input = null;
+      try { input = await this.#resolve(job, request, connection); }
+      catch (error) {
+        if (controller.signal.aborted) return;
+        lastError = error instanceof StudioError ? error : new StudioError('SOURCE_FAILED', 'Studio could not read the selected sources.');
+      }
+      for (let index = 0; input && index < plan.length; index += 1) {
         if (controller.signal.aborted) return;
         // A model the host refuses outright will not do better on a second try.
         if (index === 1 && lastError?.code === 'MODEL_CONFIGURATION_REJECTED') continue;

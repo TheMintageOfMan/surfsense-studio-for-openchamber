@@ -127,6 +127,10 @@ export class OpenCodeGateway {
       endpoint: origin, version: info.version, directory, models, modelScope: 'OpenCode base configuration',
       selectedModelKey: selected ? modelKey(selected) : null,
       recommendedModelKey: recommendModel(models, selected ? modelKey(selected) : null),
+      // The active chat context: every message after the last compaction, with its summary first.
+      chatContext: async () => unpack(await call(`/api/session/${encodeURIComponent(context.sessionId)}/context`, { signal: AbortSignal.timeout(60_000) })),
+      // OpenCode's own summarizer over the session's context; it does not change the chat.
+      summarizeChat: async (prompt, signal) => unpack(await call(`/api/session/${encodeURIComponent(context.sessionId)}/generate`, { body: { prompt }, signal, generation: true }))?.text,
       generate: async (prompt, model, signal) => {
         // Public v2 one-shot generation: no session prompt, agent tools, or transcript mutation.
         const output = unpack(await call('/api/experimental/generate', { body: { prompt, model }, signal, generation: true }));
@@ -136,7 +140,7 @@ export class OpenCodeGateway {
   }
 
   async describe(context) {
-    const { generate, ...publicConnection } = await this.prepare(context);
+    const { generate, chatContext, summarizeChat, ...publicConnection } = await this.prepare(context);
     return publicConnection;
   }
 }

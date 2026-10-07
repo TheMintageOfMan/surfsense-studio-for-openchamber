@@ -23,14 +23,9 @@ const icon = (name, className = 'icon') => {
   return span;
 };
 
-const SOURCE_TYPES = /\.(md|txt)$/i;
-// Legal and package boilerplate is rarely what someone wants to study.
-const BOILERPLATE = /^(license|licence|copying|notice|third-party|changelog|code_of_conduct)|-license\.txt$/i;
-const SKIP_FOLDERS = new Set(['node_modules', '.git', '.studio', 'temp', 'dist', 'build']);
-const MAX_FILES = 60;
 const state = {
   context: null, epoch: 0, connection: null, connecting: null, retryDelay: 2000, retryTimer: null,
-  modelPref: 'auto', files: [], selected: new Set(), rows: [], next: null, active: new Map(), pollTimer: null,
+  modelPref: 'auto', files: [], selected: new Set(), chat: null, chatSelected: false, loaded: false, rows: [], next: null, active: new Map(), pollTimer: null,
   viewer: null, customizing: null, snackTimer: null,
 };
 
@@ -121,115 +116,135 @@ function connect() {
 
 // ---------- sources ----------
 
-async function scan(epoch) {
-  const found = [];
-  const walk = async (folder, depth) => {
-    let entries;
-    try { ({ entries } = await host.listDir(folder || '.')); } catch { return; }
+// The service lists and reads the files (it can open PDFs and Office files; this frame cannot)
+// and reports each file's exact text size, so ticking never goes over the limit.
+const usable = (file) => typeof file.characters === 'number';
+const chatSize = () => (state.chat?.available ? state.chat.characters : 0);
+const selectedSize = () => state.files.filter((file) => state.selected.has(file.path)).reduce((sum, file) => sum + file.characters, 0)
+  + (state.chatSelected ? chatSize() : 0);
+
+async function loadSources(attempt = 0) {
+  const epoch = state.epoch;
+  if (!attempt) $('source-hint').textContent = 'Looking for files...';
+  let result;
+  try { result = await rpc('GET', `/sources?${query()}`); }
+  catch {
     if (epoch !== state.epoch) return;
-    const files = entries.filter((entry) => entry.kind === 'file' && SOURCE_TYPES.test(entry.name) && !BOILERPLATE.test(entry.name));
-    for (const entry of files) if (found.length < MAX_FILES) found.push({ path: folder ? `${folder}/${entry.name}` : entry.name, name: entry.name, folder });
-    if (depth >= 2) return;
-    for (const entry of entries) {
-      if (found.length >= MAX_FILES) return;
-      if (entry.kind === 'directory' && !entry.name.startsWith('.') && !SKIP_FOLDERS.has(entry.name)) await walk(folder ? `${folder}/${entry.name}` : entry.name, depth + 1);
-    }
-  };
-  await walk('', 0);
-  // Byte size is an upper bound on characters, so the budget check never under-counts.
-  // Near the limit, read the file for an exact count so non-ASCII text is not shut out.
-  await Promise.all(found.map(async (file) => {
-    try {
-      file.size = (await host.stat(file.path)).size;
-      if (file.size > LIMITS.source && file.size <= LIMITS.source * 4) file.size = (await host.readFile(file.path)).content.length;
-    } catch { file.size = 0; }
-  }));
-  return found.filter((file) => file.size > 0);
+    // Quiet retry: the service may still be starting.
+    if (attempt < 5) setTimeout(() => { void loadSources(attempt + 1); }, 3000);
+    else paintSources('Studio could not list the files. Close and reopen Studio to try again.');
+    return;
+  }
+  if (epoch !== state.epoch) return;
+  const first = !state.files.length && !state.loaded;
+  state.files = result.files;
+  state.chat = result.chat;
+  state.loaded = true;
+  if (first) {
+    const saved = await recall('sources');
+    const savedChat = await recall('chat');
+    state.selected = new Set();
+    const ready = state.files.filter(usable);
+    const remembered = Array.isArray(saved) ? ready.filter((file) => saved.includes(file.path)) : [];
+    // A remembered choice wins. Otherwise: every top-level file if they fit together, else the
+    // biggest top-level file that fits on its own (most material), else the first file that fits.
+    // The chat is only ever included because someone ticked it.
+    const top = ready.filter((file) => !file.folder);
+    const fits = (list) => list.length <= LIMITS.sources && list.reduce((sum, file) => sum + file.characters, 0) <= LIMITS.source;
+    const pick = remembered.length && fits(remembered) ? remembered
+      : top.length && fits(top) ? top
+        : [[...top].sort((a, b) => b.characters - a.characters).find((file) => file.characters <= LIMITS.source) ?? ready.find((file) => file.characters <= LIMITS.source)].filter(Boolean);
+    for (const file of pick) state.selected.add(file.path);
+    state.chatSelected = savedChat === true && Boolean(state.chat?.available) && selectedSize() + chatSize() <= LIMITS.source;
+  } else {
+    // Files that vanished or became unreadable drop out of the selection.
+    state.selected = new Set([...state.selected].filter((path) => state.files.some((file) => file.path === path && usable(file))));
+    if (!state.chat?.available) state.chatSelected = false;
+  }
+  paintSources();
+  // Big PDFs and Office files may still be reading; ask again shortly.
+  // The chat can be missing on a first, cold call; one quiet re-ask finds it.
+  const again = state.files.some((file) => file.pending) || (!state.chat?.available && attempt < 1);
+  if (again && attempt < 20) setTimeout(() => { if (epoch === state.epoch) void loadSources(attempt + 1); }, 3000);
 }
 
-const selectedSize = () => state.files.filter((file) => state.selected.has(file.path)).reduce((sum, file) => sum + file.size, 0);
-
-async function loadSources() {
-  const epoch = state.epoch;
-  $('source-hint').textContent = 'Looking for files...';
-  const files = await scan(epoch);
-  if (epoch !== state.epoch) return;
-  state.files = files;
-  const saved = await recall('sources');
-  state.selected = new Set();
-  const remembered = Array.isArray(saved) ? files.filter((file) => saved.includes(file.path)) : [];
-  // A remembered choice wins. Otherwise: every top-level file if they fit together, else the
-  // biggest top-level file that fits on its own (most material), else the first file that fits.
-  const top = files.filter((file) => !file.folder);
-  const fits = (list) => list.length <= LIMITS.sources && list.reduce((sum, file) => sum + file.size, 0) <= LIMITS.source;
-  const pick = remembered.length && fits(remembered) ? remembered
-    : top.length && fits(top) ? top
-      : [[...top].sort((a, b) => b.size - a.size).find((file) => file.size <= LIMITS.source) ?? files.find((file) => file.size <= LIMITS.source)].filter(Boolean);
-  for (const file of pick) state.selected.add(file.path);
-  paintSources();
+function sourceRow({ checked, disabled, iconName, name, folder, note, onChange }) {
+  const row = make('li');
+  const label = make('label', `check-row${disabled ? ' disabled' : ''}`);
+  const box = make('input');
+  box.type = 'checkbox';
+  box.checked = checked;
+  box.disabled = disabled;
+  box.addEventListener('change', () => onChange(box));
+  const text = make('span', 'source-name');
+  text.append(icon(iconName, 'icon small'), make('span', null, name));
+  if (folder) text.append(make('span', 'muted small', ` in ${folder}`));
+  const body = make('span', 'source-body');
+  body.append(text);
+  if (note) body.append(make('span', 'source-note', note));
+  label.append(box, body);
+  row.append(label);
+  return row;
 }
 
 function paintSources(message) {
-  const list = $('source-list');
-  list.replaceChildren(...state.files.map((file) => {
-    const row = make('li');
-    const label = make('label', 'check-row');
-    const box = make('input');
-    box.type = 'checkbox';
-    box.checked = state.selected.has(file.path);
-    box.addEventListener('change', () => toggleSource(file, box));
-    const text = make('span', 'source-name');
-    text.append(icon('file', 'icon small'), make('span', null, file.name));
-    if (file.folder) text.append(make('span', 'muted small', ` in ${file.folder}`));
-    label.append(box, text);
-    row.append(label);
-    return row;
-  }));
-  const count = state.selected.size;
-  $('source-count').textContent = state.files.length ? `${count} of ${state.files.length} selected` : '';
-  $('select-all-row').hidden = state.files.length < 2;
-  $('select-all').checked = count > 0 && count === state.files.length;
-  $('select-all').indeterminate = count > 0 && count < state.files.length;
+  const rows = [];
+  if (state.chat?.available) {
+    rows.push(sourceRow({
+      checked: state.chatSelected, iconName: 'chat', name: 'This chat',
+      note: state.chat.compressed ? 'A long chat: its key points will be used.' : 'The conversation in this chat.',
+      onChange: (box) => toggleChat(box),
+    }));
+  }
+  for (const file of state.files) {
+    rows.push(sourceRow({
+      checked: state.selected.has(file.path), disabled: !usable(file), iconName: 'file', name: file.name, folder: file.folder,
+      note: file.pending ? 'Reading...' : file.error ? `Can't use: ${file.error.replace(/\.$/, '')}` : '',
+      onChange: (box) => toggleSource(file, box),
+    }));
+  }
+  $('source-list').replaceChildren(...rows);
+  const ready = state.files.filter(usable);
+  const count = state.selected.size + (state.chatSelected ? 1 : 0);
+  const total = ready.length + (state.chat?.available ? 1 : 0);
+  $('source-count').textContent = total ? `${count} of ${total} selected` : '';
+  $('select-all-row').hidden = ready.length < 2;
+  $('select-all').checked = ready.length > 0 && state.selected.size === ready.length;
+  $('select-all').indeterminate = state.selected.size > 0 && state.selected.size < ready.length;
   $('source-hint').textContent = message
-    ?? (state.files.length ? (count ? '' : 'Tick at least one file to start.') : 'Add a text (.txt) or Markdown (.md) file to this project to get started.');
+    ?? (total ? (count ? '' : 'Tick at least one source to start.')
+      : 'Add a document to this project to get started: text, Markdown, Word, PDF, PowerPoint, Excel, CSV, JSON or a web page.');
 }
+
+const tooMuch = () => paintSources('That is too much text at once. Untick another source first.');
 
 function toggleSource(file, box) {
   if (box.checked) {
-    if (selectedSize() + file.size > LIMITS.source || state.selected.size >= LIMITS.sources) {
-      box.checked = false;
-      paintSources('That is too much text at once. Untick another file first.');
-      return;
-    }
+    if (selectedSize() + file.characters > LIMITS.source || state.selected.size >= LIMITS.sources) { box.checked = false; tooMuch(); return; }
     state.selected.add(file.path);
   } else state.selected.delete(file.path);
   void remember('sources', [...state.selected]);
   paintSources();
 }
 
+function toggleChat(box) {
+  if (box.checked && selectedSize() + chatSize() > LIMITS.source) { box.checked = false; tooMuch(); return; }
+  state.chatSelected = box.checked;
+  void remember('chat', state.chatSelected);
+  paintSources();
+}
+
 function selectAll(checked) {
   state.selected = new Set();
-  let total = 0;
   let skipped = 0;
   if (checked) {
-    for (const file of state.files) {
-      if (state.selected.size < LIMITS.sources && total + file.size <= LIMITS.source) { state.selected.add(file.path); total += file.size; } else skipped += 1;
+    let total = state.chatSelected ? chatSize() : 0;
+    for (const file of state.files.filter(usable)) {
+      if (state.selected.size < LIMITS.sources && total + file.characters <= LIMITS.source) { state.selected.add(file.path); total += file.characters; } else skipped += 1;
     }
   }
   void remember('sources', [...state.selected]);
   paintSources(skipped ? `Selected what fits. ${skipped} file${skipped === 1 ? '' : 's'} left out because it is too much text at once.` : undefined);
-}
-
-async function readSources(paths) {
-  const sources = [];
-  for (const path of paths) {
-    try {
-      const { content } = await host.readFile(path);
-      // Empty or binary files are skipped quietly; they add nothing to generate from.
-      if (content.trim() && !content.includes('\0')) sources.push({ path, content });
-    } catch { /* A file that vanished is skipped. */ }
-  }
-  return sources;
 }
 
 // ---------- tiles and creating ----------
@@ -247,7 +262,9 @@ function paintTiles() {
       main.disabled = true;
       main.title = 'Coming soon';
     } else {
-      main.title = `Make ${/^[aeiou]/i.test(NOUNS[format.key]) ? 'an' : 'a'} ${NOUNS[format.key]}`;
+      // Plural nouns (slides, flashcards) take no article.
+      const noun = NOUNS[format.key];
+      main.title = /s$/.test(noun) ? `Make ${noun}` : `Make ${/^[aeiou]/i.test(noun) ? 'an' : 'a'} ${noun}`;
       main.addEventListener('click', () => { void create(format.key); });
     }
     tile.append(main);
@@ -284,10 +301,11 @@ function openCustomize(key) {
   $('customize').showModal();
 }
 
-async function create(key, { choice, focus = '', paths } = {}) {
+async function create(key, { choice, focus = '', paths, chat } = {}) {
   const wanted = paths ?? [...state.selected];
-  if (!wanted.length) {
-    paintSources('Tick at least one file to start.');
+  const withChat = chat ?? state.chatSelected;
+  if (!wanted.length && !withChat) {
+    paintSources('Tick at least one source to start.');
     $('source-list').scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
@@ -296,11 +314,9 @@ async function create(key, { choice, focus = '', paths } = {}) {
   if (epoch !== state.epoch) return;
   const model = chosenModel();
   if (!connection || !model) { snack('Studio is still getting ready. Please try again in a moment.'); return; }
-  const sources = await readSources(wanted);
-  if (epoch !== state.epoch) return;
-  if (!sources.length) { paintSources('Those files are empty. Pick a file with some text in it.'); return; }
+  // Only paths travel; the service reads the files itself.
   const input = {
-    id: crypto.randomUUID(), format: key, sources, instructions: focus.trim(), choice: choice ?? defaultChoice(key),
+    id: crypto.randomUUID(), format: key, sources: wanted.map((path) => ({ path })), chat: Boolean(withChat), instructions: focus.trim(), choice: choice ?? defaultChoice(key),
     model: model.ref, context: state.context,
   };
   try {
@@ -367,7 +383,7 @@ async function refreshHistory(append = false) {
 
 function rowText(row) {
   const noun = NOUNS[row.format] ?? 'item';
-  const count = row.sources?.length ?? 1;
+  const count = (row.sources?.length ?? 1) + (row.chat ? 1 : 0);
   const base = `${TILES[row.format]?.name ?? row.format} · ${sourcesLabel(count)} · ${timeAgo(row.createdAt)}`;
   if (row.status === 'completed') return { title: row.title || TILES[row.format].name, sub: base };
   if (['queued', 'running'].includes(row.status)) return { title: `Making your ${noun}...`, sub: `${sourcesLabel(count)} · This can take a minute` };
@@ -422,8 +438,9 @@ async function stopJob(id) {
 async function retry(id) {
   try {
     const record = await rpc('GET', `/jobs/${id}?${query()}`);
-    const paths = (record.sources ?? [record.source]).map((source) => source.path).filter((path) => state.files.some((file) => file.path === path));
-    await create(record.format, { choice: record.choice ?? undefined, focus: record.instructions ?? '', paths: paths.length ? paths : undefined });
+    const paths = (record.sources ?? [record.source]).map((source) => source.path).filter((path) => state.files.some((file) => file.path === path && usable(file)));
+    const chat = Boolean(record.chat) && Boolean(state.chat?.available);
+    await create(record.format, { choice: record.choice ?? undefined, focus: record.instructions ?? '', ...(paths.length || chat ? { paths, chat } : {}) });
   } catch { snack('Studio could not start that. Please try again.'); }
 }
 
@@ -464,7 +481,7 @@ function closeViewer() {
 
 function paintFacts(record) {
   const facts = [
-    ['Made from', (record.sources ?? [record.source]).map((source) => source.path).join(', ')],
+    ['Made from', [...(record.sources ?? [record.source]).map((source) => source.path), ...(record.chat ? ['this chat'] : [])].join(', ')],
     ['Made', new Date(record.completedAt ?? record.createdAt).toLocaleString()],
     ['AI model', modelName(record.model)],
   ];
@@ -473,6 +490,7 @@ function paintFacts(record) {
     const switched = tries.some((attempt) => attempt.model.id !== record.requestedModel?.id);
     facts.push(['Behind the scenes', `Took ${tries.length} tries${switched ? `; finished with ${modelName(record.model)}` : ''}.`]);
   }
+  if (record.chat?.how === 'compressed') facts.push(['This chat', `It was long (${record.chat.fullCharacters?.toLocaleString() ?? 'many'} characters), so OpenCode shortened it to its key points first, using the chat's own model.`]);
   if (record.file) facts.push(['File', `${record.file.bytes.toLocaleString()} bytes${record.file.pages ? `, ${record.file.pages} ${record.format === 'pdf' ? 'pages' : record.format === 'pptx' ? 'slides' : 'sheets'}` : ''}. MD5 ${record.file.md5}`]);
   if (record.savedPath) facts.push(['Last saved as', record.savedPicture ? `${record.savedPicture} and ${record.savedPath}` : record.savedPath]);
   for (const note of record.notes ?? []) facts.push(['Note', note]);
@@ -562,7 +580,7 @@ host.onReady((ctx) => {
   clearTimeout(state.pollTimer);
   clearTimeout(state.retryTimer);
   closeViewer();
-  Object.assign(state, { context: next, epoch: state.epoch + 1, connection: null, connecting: null, retryDelay: 2000, files: [], selected: new Set(), rows: [], next: null, active: new Map() });
+  Object.assign(state, { context: next, epoch: state.epoch + 1, connection: null, connecting: null, retryDelay: 2000, files: [], selected: new Set(), chat: null, chatSelected: false, loaded: false, rows: [], next: null, active: new Map() });
   paintSources();
   paintCreations();
   if (!next.directory) { notice('Open a project in OpenChamber to use Studio.'); return; }
