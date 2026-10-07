@@ -15,6 +15,23 @@ function localOrigin(value) {
 }
 
 const unpack = (value) => value?.data ?? value;
+
+// Models that produced every Studio format live on this build's reference host. When one is
+// available it is the default; otherwise the session's own model is. Variants are avoided:
+// a reasoning variant returned empty text through the stateless route.
+const KNOWN_GOOD = [
+  ['amazon-bedrock', 'us.openai.gpt-6-astra-ultrafast'], ['amazon-bedrock', 'global.openai.gpt-6-astra-ultrafast'],
+  ['amazon-bedrock', 'openai.gpt-6-astra-ultrafast'],
+];
+export function recommendModel(models, selectedKey) {
+  for (const [providerID, id] of KNOWN_GOOD) {
+    const match = models.find((model) => model.ref.providerID === providerID && model.ref.id === id && !model.ref.variant);
+    if (match) return match.key;
+  }
+  const selected = models.find((model) => model.key === selectedKey);
+  const plain = selected && models.find((model) => model.ref.providerID === selected.ref.providerID && model.ref.id === selected.ref.id && !model.ref.variant);
+  return (plain ?? selected ?? models[0])?.key ?? null;
+}
 const sameDirectory = (a, b) => process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b;
 
 export class OpenCodeGateway {
@@ -109,6 +126,7 @@ export class OpenCodeGateway {
     return {
       endpoint: origin, version: info.version, directory, models, modelScope: 'OpenCode base configuration',
       selectedModelKey: selected ? modelKey(selected) : null,
+      recommendedModelKey: recommendModel(models, selected ? modelKey(selected) : null),
       generate: async (prompt, model, signal) => {
         // Public v2 one-shot generation: no session prompt, agent tools, or transcript mutation.
         const output = unpack(await call('/api/experimental/generate', { body: { prompt, model }, signal, generation: true }));

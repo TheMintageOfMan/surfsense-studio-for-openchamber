@@ -100,7 +100,7 @@ A podcast additionally requires the audio pack and a two-speaker brief/voice sel
 - Show queued, running, completed, failed, cancelled, and interrupted states as applicable.
 - Keep work independent of panel visibility. Host shutdown or service failure must leave an explicit interrupted/failed state, not a permanently running entry.
 - Persist enough metadata to explain the result and regenerate it. Regeneration produces a new generation record and resets associated study progress.
-- Do not silently repeat billable model, image, or audio work after an ambiguous failure. Retrying is an explicit user action.
+- Recover quietly within a fixed budget. Each request makes at most three model calls: the chosen model twice, then the recommended known-good model once. Every try is recorded in the artifact's details. There is no other automatic retry. Image and audio calls are not retried automatically.
 - Require confirmation before overwriting an existing user file or deleting artifacts/runtime data.
 
 ## 6. Sources and grounding
@@ -139,7 +139,7 @@ Trusted JavaScript builders inside the service render validated structured model
 ### D. Model adapters
 
 - **Text (settled for local hosts):** Studio uses the guest frame's local OpenChamber origin as a proxy to the active OpenCode v2 instance. It verifies the active session and its directory, lists models from OpenCode's base configuration, and calls OpenCode's stateless generation route with the selected model. It reads no credentials, never starts or discovers another OpenCode server, and refuses hosts that require authentication.
-- Offer an explicit model selection. Do not assume the host's Small Model API is sufficient, and never substitute another model silently.
+- Default to an automatic model choice, with an override in settings. Do not assume the host's Small Model API is sufficient. A switch to the fallback model is recorded in the artifact's details.
 - **Images (open):** configure a separate image-generation connection. A text or vision-input model is not automatically an image-output model, and OpenCode's generation route returns text only.
 - Keep credentials in an appropriate host/server-side credential store, never in release archives, source bundles, artifact files, or iframe messages.
 

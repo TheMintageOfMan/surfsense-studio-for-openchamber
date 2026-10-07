@@ -6,7 +6,8 @@ Plan for the next working session. Read [SPEC.md](SPEC.md), [README.md](README.m
 
 - `main` plus branch `feat/document-formats` (pass 3, pending pull request) hold a development build with 9 of 12 formats: Summary, Word, Slides, Spreadsheet, Web page, PDF, Mind map, Flashcards, and Quiz. Podcast, Image, and Infographic are disabled grid tiles.
 - Verified on Windows 11 x64 with OpenChamber 2.1.1 and OpenCode 2.0.22: folder install, the service on OpenChamber's runtime, live generation of all nine formats from the complete `SPEC.md` with Astra Ultrafast, panel previews, history reopening, and exports. Pass 3 exports matched their stored files by MD5, re-export was refused with `FILE_EXISTS`, and the Word, PowerPoint, and Excel files opened read-only in Microsoft Office without repair. 20/20 focused tests pass.
-- Package: about 3.26 MB expanded in 10 files and 1.29 MB zipped per platform folder.
+- Simple UI pass (branch `feat/simple-ui`): NotebookLM-style panel with source tick boxes, colored tiles that create on tap, a pencil for one choice plus focus, a creations list, a full-panel viewer with **Save**, and a gear for the model (Automatic by default). Quiet recovery: the chosen model twice, then the recommended model once. Checked live in the panel: Quiz, a short Summary, and two-source Flashcards completed, and Save wrote a title-named file. 25/25 tests pass.
+- Package: about 3.27 MB expanded in 10 files and 1.29 MB zipped per platform folder.
 - Fedora is build-only. Nothing has been tested on Linux or macOS.
 - Settled: no self-packaged Python; `docx`, `pptxgenjs`, `write-excel-file`, and `pdfkit` with DejaVu Sans (SPEC section 4). Text generation uses the local OpenChamber proxy, OpenCode's base model catalog, and its stateless route. Password-protected, remote, and relay hosts are out of scope.
 - Merged pull requests: #1 (Summary), #2 (study formats and web page), #3 (this plan).
@@ -75,6 +76,6 @@ Follow-ups:
 
 - No forks of SurfSense or OpenChamber; no OpenChamber installer or core changes.
 - No self-packaged Python; no model-written code executes.
-- Never truncate sources, silently substitute models, bypass authentication, or retry billable calls automatically.
+- Never truncate sources or bypass authentication. Text generation may make at most three calls per request (chosen model twice, then the recommended model once), each recorded; nothing else retries billable calls.
 - Keep scratch work in `temp/` and generated history in `.studio/`, both out of commits.
 - Distinguish controlled tests from live verification and build-only platforms in every status statement.

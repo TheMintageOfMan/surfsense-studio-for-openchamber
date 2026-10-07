@@ -4,7 +4,7 @@ An independent, optional OpenChamber extension bringing SurfSense-style Studio c
 
 Read [SPEC.md](SPEC.md) for the high-level specification, platform packaging, and optional Kokoro download design, and [nextsteps.md](nextsteps.md) for the plan.
 
-**Status:** Development build with 9 of 12 formats: Summary, Word, Slides, Spreadsheet, Web page, PDF, Mind map, Flashcards, and Quiz. Twenty focused tests pass. On Windows, the installed extension generated each format live from the complete `SPEC.md`; previews, study progress, history reopening, and exports were checked, and the Word, PowerPoint, and Excel exports opened in Microsoft Office without repair. Fedora is build-only and has not been runtime-tested.
+**Status:** Development build with 9 of 12 formats: Summary, Word, Slides, Spreadsheet, Web page, PDF, Mind map, Flashcards, and Quiz. Twenty-five focused tests pass. On Windows, the installed extension generated each format live from the complete `SPEC.md`; previews, study progress, history reopening, and exports were checked, and the Word, PowerPoint, and Excel exports opened in Microsoft Office without repair. Fedora is build-only and has not been runtime-tested.
 
 ## Install the development build
 
@@ -15,7 +15,7 @@ In OpenChamber **Settings > Extensions**, add the matching folder and approve pr
 
 The folders include built scripts and dependency licenses. Users do not install Node, Python, or a backend. Keep a folder installation in place; OpenChamber runs it from that folder. Do not install the repository root as an extension.
 
-Open a project session, open **SurfSense Studio**, choose a format, load one `.md` or `.txt` source, review the model, and generate. History is stored per format under `.studio/` inside that project. Export creates a new file in the project root (`.md`, `.html`, `.docx`, `.pptx`, `.xlsx`, or `.pdf`) and refuses to overwrite an existing file. Document files are built once in the service, stored beside their record, and exported as those exact bytes.
+Open a chat in a project and open **SurfSense Studio**. Tick the `.md` or `.txt` files to use; Studio ticks a sensible set for you. Then tap a tile. The pencil on a tile offers one simple choice (length, number of cards, or difficulty) and an optional focus. The gear picks the AI model; **Automatic** is the default. Finished items appear under **Your creations**. Tap one to open it, then tap **Save** to put a copy in the project folder under a name taken from its title. History is stored per format under `.studio/` inside that project. Save creates a new file in the project root (`.md`, `.html`, `.docx`, `.pptx`, `.xlsx`, or `.pdf`) and refuses to overwrite an existing file. Document files are built once in the service, stored beside their record, and exported as those exact bytes.
 
 | Format | Result | Limit |
 |---|---|---|
@@ -35,8 +35,9 @@ Podcast, Image, and Infographic appear as disabled tiles that state what they st
 - Built against OpenChamber 2.1.1 and OpenCode 2.0.22.
 - The model adapter uses the current guest frame's **loopback OpenChamber proxy** and verifies the active session/directory. It reads no credentials and never starts or discovers an unrelated OpenCode server.
 - Password-protected, remote, and relay hosts are not supported by this adapter. They need an authenticated extension broker; authentication is never disabled or bypassed.
-- Stateless generation uses **OpenCode's base configuration**, not project-specific model overrides. Base models and the active session's model and variant are listed; there is no Small Model fallback.
-- Sources are limited to 32,000 characters and requests to the host bridge's size limit. Oversized inputs are rejected, not truncated. There is no automatic retry of a failed model call.
+- Stateless generation uses **OpenCode's base configuration**, not project-specific model overrides. Automatic uses a model verified with every format when one is available (GPT-6 Astra Ultrafast here); otherwise it uses the session's model without a variant. There is no Small Model fallback.
+- Selected sources are limited to 32,000 characters in total (up to 20 files). The panel will not tick more than fits. Nothing is truncated.
+- Problems are handled quietly. Each request makes at most three model calls: the chosen model twice, then the recommended known-good model once. Every try is recorded in the artifact's details. There is no other automatic retry.
 - Structured replies are validated. Malformed JSON fails without saving; incomplete or excess items are omitted, and every omission is listed with the artifact.
 - A live run with Claude Opus 5.5 at variant `max` returned no text through OpenCode's stateless route for all four structured formats. Studio reports this as an empty result. The same formats succeeded with GPT-6 Astra Ultrafast.
 - Large mind maps are small in the side panel; zoom in, or open Studio as a full-screen extension page.

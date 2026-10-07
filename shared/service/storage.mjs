@@ -142,3 +142,20 @@ export async function exportFile(directory, content, filename, extension) {
   }
   return filename;
 }
+
+// Windows-safe file name from a title: no reserved characters, names or trailing dots.
+export function friendlyName(title) {
+  let name = String(title).replace(/[\\/:*?"<>|\x00-\x1f]/g, ' ').replace(/\s+/g, ' ').trim().replace(/^\.+/, '').slice(0, 80).replace(/[. ]+$/, '');
+  if (!name || /^(con|prn|aux|nul|com\d|lpt\d)$/i.test(name)) name = `Studio ${name}`.trim();
+  return name;
+}
+
+// Tries "Name.ext", then "Name (2).ext" and so on; never overwrites.
+export async function exportUnique(directory, content, title, extension) {
+  const base = friendlyName(title);
+  for (let index = 1; index <= 99; index += 1) {
+    try { return await exportFile(directory, content, `${base}${index === 1 ? '' : ` (${index})`}.${extension}`, extension); }
+    catch (error) { if (error.code !== 'FILE_EXISTS') throw error; }
+  }
+  throw new StudioError('FILE_EXISTS', 'Too many files already use this name. Rename some, then try again.', 409);
+}

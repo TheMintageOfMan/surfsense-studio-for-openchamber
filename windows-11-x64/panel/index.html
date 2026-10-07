@@ -3,55 +3,94 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SurfSense Studio for OpenChamber v2</title>
+  <title>Studio</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <main id="studio">
-    <header>
-      <h1>SurfSense Studio</h1>
-      <p class="muted">for OpenChamber v2</p>
-      <span id="build-label" class="build-label">Development build</span>
+    <header class="topbar">
+      <h1>Studio</h1>
+      <button id="open-settings" class="icon-button" type="button" aria-label="Settings" title="Settings"></button>
     </header>
-    <section aria-labelledby="formats-heading">
-      <h2 id="formats-heading">Format</h2>
-      <div id="formats" class="formats" role="group" aria-label="Studio formats"></div>
-      <p id="format-hint" class="muted small" role="status"></p>
+
+    <p id="notice" class="notice" role="status" hidden></p>
+
+    <section class="panel-card" aria-labelledby="sources-heading">
+      <div class="card-head">
+        <h2 id="sources-heading">Sources</h2>
+        <span id="source-count" class="muted"></span>
+      </div>
+      <label id="select-all-row" class="check-row select-all" hidden>
+        <input id="select-all" type="checkbox">
+        <span>Select all</span>
+      </label>
+      <ul id="source-list" class="source-list"></ul>
+      <p id="source-hint" class="hint" role="status"></p>
     </section>
-    <section aria-labelledby="connection-heading">
-      <h2 id="connection-heading">Connection</h2>
-      <p id="project" class="path muted"></p>
-      <p id="connection" role="status">Waiting for OpenChamber...</p>
-      <div id="refresh"></div>
-      <div id="model"></div>
+
+    <section aria-labelledby="create-heading">
+      <h2 id="create-heading" class="section-title">Create</h2>
+      <div id="tiles" class="tiles"></div>
     </section>
-    <section aria-labelledby="source-heading">
-      <h2 id="source-heading">Source</h2>
-      <div id="files"></div>
-      <div id="source-path"></div>
-      <div id="load"></div>
-      <p id="coverage" class="muted" role="status">No source loaded.</p>
-      <div id="instructions"></div>
-      <div class="actions"><div id="generate"></div><div id="cancel"></div></div>
-      <p id="status" role="status" aria-live="polite"></p>
-      <p class="muted small">Generation sends the selected source to the chosen model and may incur provider charges. Cancellation requests interruption; work already started may still be billed.</p>
-    </section>
-    <section aria-labelledby="history-heading">
-      <h2 id="history-heading">Saved artifacts</h2>
-      <div id="history"></div>
-      <p id="history-count" class="muted"></p>
-      <div id="more"></div>
-    </section>
-    <section id="result-section" hidden aria-labelledby="result-heading">
-      <h2 id="result-heading">Preview</h2>
-      <p id="result-meta" class="muted"></p>
-      <ul id="notes" class="notes" hidden></ul>
-      <div id="preview"></div>
-      <div id="filename"></div>
-      <div id="save"></div>
-      <p id="save-status" role="status"></p>
+
+    <section aria-labelledby="creations-heading">
+      <h2 id="creations-heading" class="section-title">Your creations</h2>
+      <ul id="creations" class="creations"></ul>
+      <p id="creations-empty" class="empty">Tap a tile above to make something from your sources.</p>
+      <button id="more" class="text-button" type="button" hidden>Show more</button>
     </section>
   </main>
+
+  <section id="viewer" class="viewer" hidden aria-labelledby="viewer-title">
+    <header class="viewer-bar">
+      <button id="viewer-back" class="icon-button" type="button" aria-label="Back" title="Back"></button>
+      <h2 id="viewer-title"></h2>
+      <button id="viewer-save" class="pill-button" type="button"></button>
+    </header>
+    <div id="viewer-body" class="viewer-body"></div>
+    <details id="viewer-details" class="details">
+      <summary>About this</summary>
+      <dl id="viewer-facts"></dl>
+    </details>
+  </section>
+
+  <dialog id="customize" class="sheet" aria-labelledby="customize-title">
+    <div class="sheet-body">
+      <h2 id="customize-title"></h2>
+      <fieldset id="choice-group" class="choice-group">
+        <legend id="choice-label"></legend>
+        <div id="choice-options" class="chips"></div>
+      </fieldset>
+      <label class="field">
+        <span>What should it focus on? <span class="muted">(optional)</span></span>
+        <textarea id="focus" rows="3" maxlength="2000" placeholder="For example: the part about the water cycle"></textarea>
+      </label>
+      <div class="sheet-actions">
+        <button class="text-button" data-close="cancel" type="button">Cancel</button>
+        <button id="customize-go" class="pill-button primary" data-close="go" type="button">Create</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="settings" class="sheet" aria-labelledby="settings-title">
+    <div class="sheet-body">
+      <h2 id="settings-title">Settings</h2>
+      <label class="field">
+        <span>AI model</span>
+        <select id="model-select"></select>
+        <span class="muted small">Automatic picks a model that works well with Studio.</span>
+      </label>
+      <p id="connection-line" class="muted small"></p>
+      <div class="sheet-actions">
+        <button class="pill-button primary" data-close="close" type="button">Done</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="snackbar" class="snackbar" role="status" aria-live="polite" hidden>
+    <span id="snackbar-text"></span>
+    <button id="snackbar-action" class="text-button" type="button" hidden></button>
+  </div>
   <script src="main.js"></script>
 </body>
 </html>

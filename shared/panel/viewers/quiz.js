@@ -20,7 +20,7 @@ export function renderQuiz(container, record, { saveProgress }) {
   function paint() {
     const answered = answers.filter((answer) => answer !== null).length;
     const correct = answers.filter((answer, index) => answer === questions[index].answer).length;
-    score.textContent = `Score: ${correct} correct of ${answered} answered (${questions.length} questions)`;
+    score.textContent = answered ? `Score: ${correct} right out of ${answered} answered (${questions.length} questions)` : `Pick an answer for each of the ${questions.length} questions.`;
     retake.update({ disabled: answered === 0 });
     list.replaceChildren(...questions.map((question, index) => {
       const item = el('li', 'quiz-item');

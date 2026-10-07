@@ -63,7 +63,9 @@ export function createStudioServer({ token, gateway, jobs = new StudioJobs() }) 
         if (!connection.models.some((model) => model.key === modelKey(input.model))) {
           throw new StudioError('NO_MODEL', 'This model is no longer available. Refresh the connection and select a model.');
         }
-        const record = await jobs.start(directory, input, connection.generate);
+        // The recommended model doubles as the quiet fallback when the chosen one keeps failing.
+        const fallback = connection.models.find((model) => model.key === connection.recommendedModelKey)?.ref ?? null;
+        const record = await jobs.start(directory, input, connection.generate, { fallback });
         json(response, 202, jobs.public(record));
         return;
       }
@@ -79,7 +81,7 @@ export function createStudioServer({ token, gateway, jobs = new StudioJobs() }) 
           return;
         }
         if (request.method === 'POST' && match[2] === 'save') {
-          json(response, 200, await jobs.save(directory, id, body.filename));
+          json(response, 200, await jobs.save(directory, id, body.filename ?? null));
           return;
         }
         if (request.method === 'POST' && match[2] === 'progress') {
