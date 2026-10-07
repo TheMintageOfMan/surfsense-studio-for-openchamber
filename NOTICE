@@ -1,0 +1,28 @@
+SurfSense Studio for OpenChamber v2
+Copyright 2026 TheMintageOfMan
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product includes material adapted from SurfSense
+(https://github.com/MODSetter/SurfSense), commit
+7fb479c361414e1ffd180860eb0b5eb5afb0c4e3, Copyright (c) SurfSense, licensed
+under the Apache License, Version 2.0. The prompt rules and reply shapes for
+Flashcards, Quiz, Mind map and Web page were adapted and modified; each adapted
+file in shared/common/ states its source and the changes made. No code from
+SurfSense's Business Source License directory (surfsense_backend/app/proprietary/)
+is used. SurfSense publishes no NOTICE file at that commit.
+
+The distributed platform folders bundle third-party JavaScript packages under
+their own licenses (MIT, ISC, BSD-2-Clause, BSD-3-Clause, 0BSD, Zlib, and
+Apache-2.0; DOMPurify is used under Apache-2.0 and JSZip under MIT, from their
+dual licenses). Their license texts are reproduced in each folder's
+THIRD-PARTY-LICENSES.txt.
+
+This product bundles the Inter typeface 4.1 (https://github.com/rsms/inter),
+Copyright (c) 2016 The Inter Project Authors, licensed under the SIL Open Font
+License, Version 1.1 (shared/fonts/Inter-LICENSE.txt). The font is not covered
+by the Apache License; it remains under the SIL Open Font License.
+
+"SurfSense", "OpenChamber", "OpenCode", "NotebookLM" and other names are
+trademarks of their respective owners. This project is independent and is not
+affiliated with or endorsed by any of them.

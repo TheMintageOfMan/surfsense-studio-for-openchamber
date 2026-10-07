@@ -197,7 +197,7 @@ Large-file preview/export must use a proven host-compatible path, such as servic
 - Make storage locations visible. Disabling Studio stops its processes; deleting generated content or packs requires explicit user confirmation.
 - Send source material only to model endpoints selected for the operation. Do not expose service tokens, credentials, or source text in diagnostic logs. No unrelated telemetry is required.
 - Validate model output and escape/sandbox generated HTML. Do not execute source-supplied commands or model-written code. Missing optional capabilities must fail locally to that feature, not prevent Studio from opening.
-- Preserve relevant Apache-2.0 notices and modification attribution for reused SurfSense Studio code and applicable OpenChamber/SDK notices. Exclude unrelated proprietary SurfSense code.
+- Studio is licensed under Apache-2.0 (LICENSE, NOTICE; copyright TheMintageOfMan). Preserve relevant Apache-2.0 notices and modification attribution for reused SurfSense Studio code and applicable OpenChamber/SDK notices. Exclude unrelated proprietary SurfSense code.
 - Ship license text for every bundled library and font; the build fails when a bundled package lacks it. Review redistribution rights for every model and voice. Retaining eSpeak-ng introduces GPL distribution obligations; permissive licensing of Studio source does not eliminate those obligations.
 
 ## 12. Acceptance criteria

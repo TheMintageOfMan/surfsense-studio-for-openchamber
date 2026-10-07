@@ -80,11 +80,13 @@ for (const target of targets) {
     build({ ...node, entryPoints: ['shared/service/builders/infographic-worker.mjs'], outfile: path.join(directory, 'service/infographic-worker.js') }),
   ]);
   for (const file of SERVICE_FONTS) await fs.copyFile(path.join(root, 'shared/fonts', file), path.join(directory, 'service/fonts', file));
+  // Each distributed folder carries the project license and attribution notice.
+  for (const file of ['LICENSE', 'NOTICE']) await fs.copyFile(path.join(root, file), path.join(directory, file));
   for (const file of ['index.html', 'styles.css', 'icon.svg']) {
     await fs.copyFile(path.join(root, 'shared/panel', file), path.join(directory, 'panel', file));
   }
   const manifest = {
-    name: 'surfsense-studio-for-openchamber', version, private: true, type: 'module', description,
+    name: 'surfsense-studio-for-openchamber', version, private: true, type: 'module', description, license: 'Apache-2.0',
     studioPlatform: { os: target.platform, arch: target.arch },
     openchamber: {
       apiVersion: 1, engines: { openchamber: '>=2.1.1' },

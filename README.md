@@ -1,72 +1,192 @@
 # SurfSense Studio for OpenChamber v2
 
-An independent, optional OpenChamber extension bringing SurfSense-style Studio capabilities to selected sources: summaries, flashcards, quizzes, mind maps, slides, documents, spreadsheets, web pages, PDFs, podcasts, images, and infographics.
+Turn your notes into study material and documents with one tap. SurfSense Studio is an independent, optional extension for [OpenChamber](https://github.com/openchamber/openchamber). It takes the `.md` and `.txt` files in a project and makes summaries, flashcards, quizzes, mind maps, web pages, Word reports, slide decks, spreadsheets, PDFs and infographics from them, using the AI models you already have in OpenChamber.
 
-Read [SPEC.md](SPEC.md) for the high-level specification, platform packaging, and optional Kokoro download design, and [nextsteps.md](nextsteps.md) for the plan.
+It is built for anyone aged ten and up who is not technical: pick your files, tap a tile, open the result, save it. Studio chooses sensible defaults and quietly recovers from most problems.
 
-**Status:** Development build with 10 of 12 formats: Summary, Word, Slides, Spreadsheet, Web page, PDF, Mind map, Flashcards, Quiz, and Infographic. Twenty-eight focused tests pass. On Windows, the installed extension generated each format live from the complete `SPEC.md`; previews, study progress, history reopening, and exports were checked, and the Word, PowerPoint, and Excel exports opened in Microsoft Office without repair. Fedora is build-only and has not been runtime-tested.
+> **Status: development build, 10 of 12 formats.** Tested on Windows 11 x64 with OpenChamber 2.1.1 and OpenCode 2.0.22. The Fedora build is produced but has not been run on Linux. Podcast and Picture are planned. See [Project status](#project-status).
 
-## Install the development build
+## Contents
 
-In OpenChamber **Settings > Extensions**, add the matching folder and approve project-file access and the local service:
+- [What it makes](#what-it-makes)
+- [Install](#install)
+- [Use](#use)
+- [How it works](#how-it-works)
+- [Privacy and network use](#privacy-and-network-use)
+- [Limits and known issues](#limits-and-known-issues)
+- [Develop](#develop)
+- [Project status](#project-status)
+- [Acknowledgements](#acknowledgements)
+- [License](#license)
 
-- [Windows 11 x64](windows-11-x64/README.md)
-- [Fedora amd64](linux-fedora-amd64/README.md), unverified on Fedora
+## What it makes
 
-The folders include built scripts and dependency licenses. Users do not install Node, Python, or a backend. Keep a folder installation in place; OpenChamber runs it from that folder. Do not install the repository root as an extension.
+| Tile | Result | Customize (pencil) | Limits |
+|---|---|---|---|
+| Summary | Structured Markdown brief | Short, Standard, Long | About 500 words by default |
+| Report (Word) | Editable `.docx` with headings, paragraphs, bullets and tables | Shorter, Standard, Longer | 12 sections; tables up to 8 columns x 50 rows |
+| Slides | Editable 16:9 `.pptx` with a title slide and speaker notes | Short deck, Standard | 15 slides, 6 bullets each |
+| Data table (Excel) | `.xlsx` of tables found in the source, missing values left empty, plus a Notes sheet | Focus only | 10 sheets, 20 columns, 500 rows |
+| Web page | Self-contained `.html` page with no scripts | Shorter, Standard, Longer | 10 sections |
+| PDF | Typeset `.pdf` ready to print | Shorter, Standard, Longer | 12 sections |
+| Mind map | Zoomable, collapsible map plus a text outline | Simple, Detailed | 10 branches, 6 levels |
+| Flashcards | One card at a time with reveal and "mark known"; progress is saved | Fewer, Standard, More | 20 cards |
+| Quiz | Four-option questions with scoring and explanations; progress is saved | Easy, Medium, Hard | 10 questions |
+| Infographic | One-page poster in one of 16 layouts (steps, timeline, roadmap, cycle, pyramid, funnel, cards, list, compare, SWOT, pie, columns, bars, tree); saved as PNG and SVG | Simple, Detailed | 8 items; long text is shortened and the cut is marked |
+| Podcast | Planned: two-speaker audio with an optional Kokoro voice pack | | |
+| Picture | Planned: an illustration from an image model | | |
 
-Open a chat in a project and open **SurfSense Studio**. Tick the `.md` or `.txt` files to use; Studio ticks a sensible set for you. Then tap a tile. The pencil on a tile offers one simple choice (length, number of cards, or difficulty) and an optional focus. The gear picks the AI model; **Automatic** is the default. Finished items appear under **Your creations**. Tap one to open it, then tap **Save** to put a copy in the project folder under a name taken from its title. History is stored per format under `.studio/` inside that project. Save creates a new file in the project root (`.md`, `.html`, `.docx`, `.pptx`, `.xlsx`, or `.pdf`) and refuses to overwrite an existing file. Document files are built once in the service, stored beside their record, and exported as those exact bytes.
+Every pencil also has an optional "What should it focus on?" box. Everything Studio makes uses one font, **Inter**, so the panel, previews and files look alike.
 
-| Format | Result | Limit |
-|---|---|---|
-| Summary | Structured Markdown brief | About 500 words requested |
-| Flashcards | One card at a time with reveal and mark-known; progress is saved | 20 cards |
-| Quiz | Four-option questions with scoring and explanations; progress is saved | 10 questions |
-| Mind map | Zoomable, collapsible Markmap plus a text outline | 10 main branches, 6 levels |
-| Web page | Self-contained HTML in an isolated, script-free preview; the export matches the preview | 10 sections |
-| Word, PDF | Editable `.docx` or typeset `.pdf` with headings, paragraphs, bullets, and tables; outline preview | 12 sections; tables 8 columns x 50 rows |
-| Slides | Editable 16:9 `.pptx` with a title slide and speaker notes; slide-card preview | 15 slides, 6 bullets each |
-| Spreadsheet | `.xlsx` of tables taken from the source, missing values left empty, plus a Notes sheet; table preview | 10 sheets, 20 columns, 500 rows |
-| Infographic | One-page poster drawn by AntV Infographic from one of 16 checked layouts (steps, timeline, compare, charts, tree and more); Save gives a PNG and an SVG | 8 items; short text, cuts disclosed |
+## Install
 
-Podcast and Picture appear as disabled tiles. They have no implementation yet.
+Studio is installed as a folder. Users do not install Node, Python, Office or any server.
 
-Everything uses one font, **Inter** (SIL Open Font License): the panel, previews, PDFs, web pages and infographics embed it, and Word documents embed it too. Slides and spreadsheets name Inter but cannot carry it, so PowerPoint and Excel substitute a font where Inter is not installed.
+1. Download or clone this repository.
+2. In OpenChamber, open **Settings > Extensions** and choose **Add folder**.
+3. Pick the folder for your computer:
+   - [`windows-11-x64/`](windows-11-x64/README.md) (tested)
+   - [`linux-fedora-amd64/`](linux-fedora-amd64/README.md) (built, not yet tested on Linux)
+4. Approve project-file access and the local service when asked.
 
-### Current boundaries
+Keep the folder where it is: OpenChamber runs the extension from that location. Do not add the repository root as an extension.
 
-- Built against OpenChamber 2.1.1 and OpenCode 2.0.22.
-- The model adapter uses the current guest frame's **loopback OpenChamber proxy** and verifies the active session/directory. It reads no credentials and never starts or discovers an unrelated OpenCode server.
-- Password-protected, remote, and relay hosts are not supported by this adapter. They need an authenticated extension broker; authentication is never disabled or bypassed.
-- Stateless generation uses **OpenCode's base configuration**, not project-specific model overrides. Automatic uses a model verified with every format when one is available (GPT-6 Astra Ultrafast here); otherwise it uses the session's model without a variant. There is no Small Model fallback.
-- Selected sources are limited to 32,000 characters in total (up to 20 files). The panel will not tick more than fits. Nothing is truncated.
-- Problems are handled quietly. Each request makes at most three model calls: the chosen model twice, then the recommended known-good model once. Every try is recorded in the artifact's details. There is no other automatic retry.
-- Structured replies are validated. Malformed JSON fails without saving; incomplete or excess items are omitted, and every omission is listed with the artifact.
-- A live run with Claude Opus 5.5 at variant `max` returned no text through OpenCode's stateless route for all four structured formats. Studio reports this as an empty result. The same formats succeeded with GPT-6 Astra Ultrafast.
-- Large mind maps are small in the side panel; zoom in, or open Studio as a full-screen extension page.
-- Cancellation aborts Studio's request; a provider may still bill work already started. Closing the panel does not stop service-owned jobs.
-- Document previews show the content the file was built from, not a rendering of the file. PDF characters Inter cannot draw (such as emoji) appear as "?" and are listed in the notes.
-- Infographic icons are looked up by keyword on AntV's icon service (weavefox.cn); only the keyword is sent. Without a connection the infographic is drawn without icons.
-- No Python is used. No image adapter or Kokoro download is included yet.
+## Use
+
+1. Open a chat in a project, then open **SurfSense Studio** from the right-hand rail.
+2. Under **Sources**, tick the files to use. Studio ticks a sensible set for you and remembers your choice. It will not let you tick more text than it can send.
+3. Tap a tile to make something with the default settings. Or tap the tile's pencil to choose one simple option and, if you like, say what to focus on.
+4. Your item appears under **Your creations** with a spinner, then a "ready" message. You can make up to three things at once.
+5. Tap an item to open it. Tap **Save** to put a copy in the project folder, named after its title, such as `Planets quiz.md` or `How a seed grows.png`. Saving never overwrites a file; a second copy becomes `(2)`.
+6. **About this**, under each item, shows the sources, the AI model, file details and anything Studio had to leave out.
+
+The gear in the top corner chooses the AI model. **Automatic** is the default and the recommended choice.
+
+## How it works
+
+Studio has two parts, both shipped in the platform folder and run by OpenChamber:
+
+- **Panel** (`panel/`): the screen you use. It runs in OpenChamber's sandboxed extension frame.
+- **Service** (`service/`): a small JavaScript program that OpenChamber starts with its own runtime. It talks to the AI, checks the replies, builds the files and keeps the history.
+
+When you tap a tile:
+
+1. The panel reads the ticked files and sends them, with your choice and focus, to the service.
+2. The service asks the AI model for a structured reply (JSON for most formats) through OpenChamber's local connection to OpenCode. It never reads or stores credentials.
+3. The service checks the reply strictly. Anything incomplete or over a limit is dropped or shortened, and every change is listed under **About this**. Nothing the model writes is ever run as code.
+4. If the reply is unusable, Studio quietly tries again: the chosen model twice, then the recommended model once. That is at most three AI calls per tap, and every try is recorded.
+5. Trusted builders turn the checked content into the file:
+   - Word: [docx](https://github.com/dolanmiu/docx), with Inter embedded.
+   - Slides: [PptxGenJS](https://github.com/gitbrent/PptxGenJS).
+   - Excel: [write-excel-file](https://gitlab.com/catamphetamine/write-excel-file).
+   - PDF: [PDFKit](https://github.com/foliojs/pdfkit), with Inter embedded.
+   - Infographic: [AntV Infographic](https://github.com/antvis/Infographic), run in its own background thread.
+   - Mind map: [Markmap](https://github.com/markmap/markmap).
+   - Web page: a fixed template that escapes every piece of text.
+6. History is saved per format under `.studio/` in the project, so it survives restarts and can be reopened, studied or saved again.
+
+Infographic PNGs are drawn in the panel, because the library places text in a way only a browser can rasterize. The PNG is then sent to the service in pieces and saved.
+
+## Privacy and network use
+
+- **Your files** go only to the AI model you chose (or Automatic picked), through your local OpenChamber and OpenCode connection. Your model provider's terms and charges apply. Studio adds no telemetry.
+- **Infographic icons** are looked up by keyword on AntV's icon service (`weavefox.cn`). Only the single icon word the model chose, such as `leaf`, is sent; your documents are not. Without a connection the infographic is drawn without icons.
+- Studio works only with OpenChamber on the same computer. Password-protected, remote and relay hosts are not supported, and Studio never bypasses authentication.
+
+## Limits and known issues
+
+- Selected sources can total 32,000 characters, up to 20 files. Studio refuses rather than cutting a source short.
+- **Automatic** uses a model verified with every format when one is available (GPT-6 Astra Ultrafast on the test machine). Otherwise it uses the chat's model without a reasoning variant. A Claude Opus 5.5 run at variant `max` returned empty text for structured formats through OpenCode's stateless route.
+- PowerPoint and Excel files name the Inter font but cannot carry it, so those apps substitute a font where Inter is not installed. Word, PDF, web pages and infographics carry Inter with them.
+- PDF characters Inter cannot draw, such as emoji, appear as `?` and are listed under **About this**.
+- Document previews show the content the file was built from, not a pixel-perfect rendering of the file.
+- Large mind maps are small in the side panel; zoom in or open Studio full screen.
+- Stopping a job cancels Studio's request, but the AI provider may still charge for work already started.
 
 ## Develop
 
-Shared implementation is in `shared/`; `scripts/build.mjs` builds the two existing platform folders without duplicating source code. Node 22+ and npm are development tools only.
+All source code is in `shared/`. `scripts/build.mjs` builds both platform folders from it, so never edit the platform folders by hand. Node 22 or later and npm are needed for development only.
 
 ```sh
 npm ci --ignore-scripts --no-audit --no-fund --cache ./temp/npm-cache
-npm test
-npm run build
+npm test        # controlled tests, no AI calls
+npm run build   # rebuilds windows-11-x64/ and linux-fedora-amd64/
 ```
 
-Run `npm run probe` from an OpenChamber agent shell for a read-only connection/model check. It does not generate text or print credentials. Unit tests use controlled transports; passing them does not establish live model or cross-platform compatibility.
+| Path | What it holds |
+|---|---|
+| `shared/common/` | Format definitions, prompts and reply checks, shared by panel and service |
+| `shared/panel/` | Panel screen, viewers and styles |
+| `shared/service/` | Service: HTTP bridge, jobs, storage, OpenCode adapter, file builders |
+| `shared/fonts/` | Inter font files, license and text-measurement data |
+| `shared/licenses/` | License notices for bundled packages that ship none |
+| `scripts/` | Build, read-only connection probe, font-metrics generator |
+| `tests/` | Controlled tests for every format, recovery, storage and the service |
 
-Live Windows checks generated every implemented format from the complete `SPEC.md` through the installed extension. Source identity and exports were checked with MD5. Cancellation and no-overwrite behavior were checked with controlled transports; no billable call was made just to test cancellation.
+`npm run probe`, run from an OpenChamber agent shell, makes a read-only connection and model check. It does not generate text or print credentials. Passing the controlled tests does not prove live model behaviour or other platforms. [SPEC.md](SPEC.md) holds the full specification and design decisions; [nextsteps.md](nextsteps.md) holds the working plan; [AGENTS.md](AGENTS.md) guides AI coding agents.
 
-Flashcards, Quiz, Mind map, and Web page adapt SurfSense's Apache-2.0 prompts (the document prompts are this project's own) and reply shapes; each adapted file names its source, and each package's `THIRD-PARTY-LICENSES.txt` carries the notice.
+## Project status
 
-https://github.com/MODSetter/SurfSense
-https://github.com/openchamber/openchamber
+**Checked live on Windows** through the installed extension:
+- All ten formats generated from real project files.
+- Previews, study progress, history, quiet recovery, and saving.
+- Word, PowerPoint and Excel files opened in Microsoft Office without repair. Exported files matched the stored files byte for byte (MD5).
+- Infographic PNG and SVG saving.
 
-## Idea
-- Incorporate the Studio from SurfSense into OpenChamber v2.
+**Not yet done:**
+- Podcast and Picture.
+- Testing on Linux and macOS.
+- Clean-machine install and upgrade tests.
+- Release packaging.
+
+## Acknowledgements
+
+Studio stands on the work of many people. Thank you all.
+
+**Inspiration and foundations**
+
+- [SurfSense](https://github.com/MODSetter/SurfSense) by MODSetter and contributors: the Studio concept and its twelve formats. The prompt rules and reply shapes for Flashcards, Quiz, Mind map and Web page are adapted from SurfSense under the Apache License 2.0; each adapted file names its source.
+- [OpenChamber](https://github.com/openchamber/openchamber): the host application, its extension SDK and UI kit (`@openchamber/sdk`, MIT).
+- [OpenCode](https://github.com/sst/opencode): the agent runtime and model connection Studio generates through.
+- [Google NotebookLM](https://notebooklm.google.com/): the design inspiration for the simple Studio panel of tiles and creations. No NotebookLM code or assets are used.
+
+**Libraries bundled in the extension**
+
+- [AntV Infographic](https://github.com/antvis/Infographic) by the AntV team at Ant Group (MIT), its icon service, and its dependencies:
+  - [D3](https://github.com/d3/d3) by Mike Bostock and contributors (ISC).
+  - [@antv/layout](https://github.com/antvis/layout) and [@antv/hierarchy](https://github.com/antvis/hierarchy) (MIT).
+  - [linkedom](https://github.com/WebReflection/linkedom) by Andrea Giammarchi (ISC).
+  - [measury](https://github.com/Aarebecca/measury) (MIT).
+  - [Rough.js](https://github.com/rough-stuff/rough) by Preet Shihn (MIT).
+  - [culori](https://github.com/Evercoder/culori) by Dan Burzo (MIT).
+  - [PostCSS](https://github.com/postcss/postcss) by Andrey Sitnik (MIT).
+  - [htmlparser2](https://github.com/fb55/htmlparser2) and related packages by Felix Boehm (MIT, BSD-2-Clause).
+  - [lodash](https://github.com/lodash/lodash) (MIT).
+  - [TinyColor](https://github.com/bgrins/TinyColor) (MIT).
+- [docx](https://github.com/dolanmiu/docx) by Dolan Miu (MIT).
+- [PptxGenJS](https://github.com/gitbrent/PptxGenJS) by Brent Ely (MIT).
+- [write-excel-file](https://gitlab.com/catamphetamine/write-excel-file) by catamphetamine (MIT).
+- [PDFKit](https://github.com/foliojs/pdfkit) and [fontkit](https://github.com/foliojs/fontkit) by Devon Govett and the foliojs contributors (MIT).
+- [JSZip](https://github.com/Stuk/jszip) by Stuart Knightley (used under MIT) and [pako](https://github.com/nodeca/pako) (MIT and Zlib).
+- [fflate](https://github.com/101arrowz/fflate) by Arjun Barrett (MIT).
+- [Markmap](https://github.com/markmap/markmap) by Gerald Liu (MIT).
+- [marked](https://github.com/markedjs/marked) by Christopher Jeffrey and the MarkedJS team (MIT).
+- [DOMPurify](https://github.com/cure53/DOMPurify) by Mario Heiderich and Cure53 (used under Apache-2.0).
+- Many smaller packages, each listed with its full license text in the platform folder's `THIRD-PARTY-LICENSES.txt`.
+
+**Font**
+
+- [Inter](https://github.com/rsms/inter) by Rasmus Andersson and the Inter Project Authors, under the SIL Open Font License 1.1.
+
+**Development tools (not shipped)**
+
+- [esbuild](https://github.com/evanw/esbuild) by Evan Wallace (MIT) builds the bundles.
+- [python-docx](https://github.com/python-openxml/python-docx), [python-pptx](https://github.com/scanny/python-pptx), [openpyxl](https://foss.heptapod.net/openpyxl/openpyxl) and [pypdf](https://github.com/py-pdf/pypdf) were used only to check generated files during development.
+
+Product names are trademarks of their owners. This project is independent and is not affiliated with or endorsed by SurfSense, OpenChamber, OpenCode, Google or AntV.
+
+## License
+
+Copyright 2026 TheMintageOfMan.
+
+Licensed under the [Apache License, Version 2.0](LICENSE). See [NOTICE](NOTICE) for attributions. Bundled third-party packages keep their own licenses, listed in each platform folder's `THIRD-PARTY-LICENSES.txt`. The Inter font stays under the [SIL Open Font License 1.1](shared/fonts/Inter-LICENSE.txt).

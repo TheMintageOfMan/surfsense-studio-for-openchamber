@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "SurfSense Studio for OpenChamber v2 - text formats development build",
+  "license": "Apache-2.0",
   "studioPlatform": {
     "os": "win32",
     "arch": "x64"
