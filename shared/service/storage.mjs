@@ -103,6 +103,30 @@ export async function listRecords(directory) {
   return records;
 }
 
+// Built document files live beside their record as .studio/<folder>/<id>.<ext>.
+export async function writeArtifactFile(directory, record, extension, bytes) {
+  const root = await folder(directory, formatFor(record.format).folder, true);
+  const name = `${requireJobId(record.id)}.${extension}`;
+  const temporary = path.join(root, `${record.id}.${randomUUID()}.tmp`);
+  await fs.writeFile(temporary, bytes, { flag: 'wx' });
+  await fs.rename(temporary, path.join(root, name));
+  return name;
+}
+
+export async function readArtifactFile(directory, record, maxBytes) {
+  const root = await folder(directory, formatFor(record.format).folder);
+  const name = record.file?.name;
+  if (!root || name !== `${requireJobId(record.id)}.${formatFor(record.format).extension}`) {
+    throw new StudioError('NO_FILE', 'The stored file for this artifact is missing. Regenerate explicitly.', 409);
+  }
+  const target = path.join(root, name);
+  const info = await fs.lstat(target).catch(() => null);
+  if (!info?.isFile() || info.isSymbolicLink() || info.size > maxBytes) {
+    throw new StudioError('NO_FILE', 'The stored file for this artifact is missing or invalid. Regenerate explicitly.', 409);
+  }
+  return fs.readFile(target);
+}
+
 export async function exportFile(directory, content, filename, extension) {
   if (typeof filename !== 'string' || filename.length > 120 || !filename.toLowerCase().endsWith(`.${extension}`)
       || /[\\/:*?"<>|\x00-\x1f]/.test(filename) || filename.startsWith('.')) {

@@ -4,11 +4,12 @@ Plan for the next working session. Read [SPEC.md](SPEC.md), [README.md](README.m
 
 ## 1. Where things stand
 
-- `main` holds the specification (v0.2) and a development build with 5 of 12 formats: Summary, Flashcards, Quiz, Mind map, and Web page. The other 7 formats are disabled grid tiles.
-- Verified on Windows 11 x64 with OpenChamber 2.1.1 and OpenCode 2.0.22: folder install, the service running on OpenChamber's runtime, live generation of all five formats from the complete `SPEC.md`, previews, study progress, history reopening, and exports. 15/15 focused tests pass.
+- `main` plus branch `feat/document-formats` (pass 3, pending pull request) hold a development build with 9 of 12 formats: Summary, Word, Slides, Spreadsheet, Web page, PDF, Mind map, Flashcards, and Quiz. Podcast, Image, and Infographic are disabled grid tiles.
+- Verified on Windows 11 x64 with OpenChamber 2.1.1 and OpenCode 2.0.22: folder install, the service on OpenChamber's runtime, live generation of all nine formats from the complete `SPEC.md` with Astra Ultrafast, panel previews, history reopening, and exports. Pass 3 exports matched their stored files by MD5, re-export was refused with `FILE_EXISTS`, and the Word, PowerPoint, and Excel files opened read-only in Microsoft Office without repair. 20/20 focused tests pass.
+- Package: about 3.26 MB expanded in 10 files and 1.29 MB zipped per platform folder.
 - Fedora is build-only. Nothing has been tested on Linux or macOS.
-- Settled: no self-packaged Python; Office and PDF files will come from JavaScript builders in the service. Text generation uses the local OpenChamber proxy, OpenCode's base model catalog, and its stateless route. Password-protected, remote, and relay hosts are out of scope.
-- Merged pull requests: #1 (Summary), #2 (study formats and web page), and the change that adds this file.
+- Settled: no self-packaged Python; `docx`, `pptxgenjs`, `write-excel-file`, and `pdfkit` with DejaVu Sans (SPEC section 4). Text generation uses the local OpenChamber proxy, OpenCode's base model catalog, and its stateless route. Password-protected, remote, and relay hosts are out of scope.
+- Merged pull requests: #1 (Summary), #2 (study formats and web page), #3 (this plan).
 
 ## 2. Working setup
 
@@ -32,65 +33,14 @@ Model notes: `amazon-bedrock/us.openai.gpt-6-astra-ultrafast` worked for every f
 
 Approvals to request again next session: every live generation (billable), service restarts and other extension-registry changes, and every GitHub push, pull request, or merge. Commit and merge permission was given for this session only.
 
-## 3. Pass 3: document formats with JavaScript builders
+## 3. Pass 3: document formats (done, pending merge)
 
-Goal: Word, Slides, Spreadsheet, and PDF produce real, editable files from one text source, with in-panel previews and non-overwriting export. Format count becomes 9 of 12.
+Delivered: `shared/common/documents.mjs` (prompts, validation, disclosed caps), `shared/service/builders/` (deterministic builders; files stored as `.studio/<folder>/<id>.<ext>` with name, bytes, and MD5 in the record; export copies those bytes service-side), `shared/panel/viewers/documents.js` (outline, slide-card, and sheet previews), `tests/documents.test.mjs`, and bundled DejaVu Sans with license notices. Development-only checks in `temp/` (not committed): `check_files.py` (python-docx, python-pptx, openpyxl, pypdf), `office-open.ps1` (read-only Office COM open), `live-export.mjs`.
 
-### Step 1. Qualify the libraries before building features
+Follow-ups:
 
-1. Confirm current versions, licenses, and dependency trees for the proposed libraries: `docx` (DOCX), `pptxgenjs` (PPTX), `exceljs` (XLSX), and `pdfkit` (PDF). Prefer libraries with no native addons and no network access at runtime.
-2. Write a throwaway spike under `temp/` that builds one small file per format from fixed data, bundled with esbuild for Node exactly as the service is.
-3. Known risk: `pdfkit` loads its standard-font metric files from disk, which can break once bundled. Embed a Unicode font as a buffer from the start (model output contains curly quotes and dashes), for example Noto Sans regular and bold under the SIL Open Font License, and confirm no default font file is read.
-4. Check the spike files independently with development-only tools: `python-docx`, `python-pptx`, and `openpyxl` on this machine, and a PDF parse. These tools never ship.
-5. Rebuild and measure both platform folders: expanded bytes, compressed ZIP size, and file count against 40 MiB, 20 MiB, and 500 files.
-6. Record the chosen libraries and fonts in `SPEC.md` section 4 and in the open-decisions list.
-
-### Step 2. Shared format modules
-
-Add `shared/common/docx.mjs`, `pptx.mjs`, `xlsx.mjs`, and `pdf.mjs`, following the existing modules: prompt, reply parsing, validation with disclosed caps and omissions, a Markdown body for history, and no model-written code. SurfSense's Office prompts ask for Python scripts, so write new structured prompts; its `SKILL.md` authoring guidance may be adapted with attribution if useful.
-
-Proposed reply shapes and caps, to confirm during the pass:
-
-| Format | Reply shape | Caps |
-|---|---|---|
-| Word, PDF | `{"title", "subtitle", "sections": [{"heading", "paragraphs": [str], "bullets": [str], "table": {"columns": [str], "rows": [[str]]} or null}]}` | 12 sections; tables at most 8 columns and 50 rows |
-| Slides | `{"title", "subtitle", "slides": [{"title", "bullets": [str], "notes": str}]}` | 15 slides plus a generated title slide; 6 bullets per slide |
-| Spreadsheet | `{"title", "tables": [{"name", "description", "columns": [str], "rows": [[string or number or null]]}]}` | 10 sheets; 20 columns; 500 rows |
-
-Rules:
-
-- Every value is plain text; builders apply all formatting.
-- Spreadsheet tables must come from the source. Missing values stay empty (`null`), never invented. Row lengths must match the column count. Sheet names are sanitized to Excel's 31-character rule with disclosed renames. Add a notes sheet with the source path, model, and omissions.
-- Keep caps modest: the route cannot raise the model's output budget, so an over-long reply ends as invalid JSON (reported as such, not truncated).
-
-### Step 3. Builders in the service
-
-1. Add `shared/service/builders/` with one deterministic builder per format, Node only. Use the record's `createdAt` for document metadata so rebuilding the same artifact gives the same content.
-2. Store the generated file beside its record as `.studio/<folder>/<id>.<ext>` with atomic writes. Record its name, byte size, and MD5 in the record.
-3. Export copies the stored bytes to a new project-root file by exclusive creation. Binary bytes never travel through the panel bridge for export.
-4. Keep the record's public JSON under the 240,000-character bridge budget.
-
-### Step 4. Panel previews
-
-1. Render previews from the structured artifact: a document outline with tables, slide cards, sheet tables, and the same outline for PDF with page information from the builder.
-2. Treat true file rendering (`pdf.js`, `docx-preview`, or similar) as optional. Add it only if the bundle size and the iframe policy (`worker-src` and `connect-src`) allow it, and stream bytes in bounded chunks.
-3. Flip the four catalog entries to implemented and update their tile reasons.
-
-### Step 5. Tests
-
-Controlled replies only, no model calls:
-
-- Valid and malformed replies; caps and disclosure notes; spreadsheet null handling, row-length checks, and sheet-name sanitizing.
-- Generated files are valid packages: OOXML parts present in each ZIP, a PDF header and trailer, and identical bytes on rebuild.
-- Export refuses overwrites and wrong extensions; history and public JSON stay within limits.
-- A development-only script under `temp/` opens the test files with `python-docx`, `python-pptx`, and `openpyxl` as an independent check.
-
-### Step 6. Live verification
-
-1. Rebuild, re-measure package size, and restart the service (approval).
-2. One live generation per format from `SPEC.md` with Astra Ultrafast (approval each). Run long checks in the background so the session does not block.
-3. Check each preview in the panel, export each file, open the exports in Word, PowerPoint, Excel, and a PDF reader, and verify the exports by MD5 against the stored files.
-4. Update README, the platform READMEs, AGENTS.md, and the SPEC status; commit; open a pull request and link it to the session.
+- True file rendering in the panel (`pdf.js`, `docx-preview`) was not added; decide whether it is worth the bundle and iframe-policy cost.
+- Long Office layout is unchecked beyond opening: slide text uses shrink-to-fit, and very wide tables may need landscape pages.
 
 ## 4. Pass 4: media formats
 
@@ -118,7 +68,7 @@ Controlled replies only, no model calls:
 - Derive the service `/health` version from the build instead of the hard-coded `0.2.0`.
 - Large mind maps are tiny in the side panel; consider a shallower initial expand level or a larger minimum scale.
 - Surface the reasoning-variant hint in the panel when a model returns empty text.
-- Delete the merged branches `feat/summary-first-pass`, `feat/study-formats`, and this pass's documentation branch, and remove the two test exports in the clone root (`summary-...md`, `webpage-...html`), but only with approval.
+- Delete the merged branches `feat/summary-first-pass`, `feat/study-formats`, and `docs/js-builders-plan`, and remove the two test exports in the clone root (`summary-...md`, `webpage-...html`), but only with approval.
 - Consider committing the restart and live-check helpers as documented development scripts.
 
 ## 7. Guardrails
