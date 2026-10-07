@@ -2,7 +2,7 @@
 
 Turn your notes into study material and documents with one tap. SurfSense Studio is an independent, optional extension for [OpenChamber](https://github.com/openchamber/openchamber). It takes the documents in a project (text, Markdown, Word, PDF, PowerPoint, Excel, including the old 97-2003 formats, CSV, JSON, web pages and more) and, if you like, the current chat, and makes summaries, flashcards, quizzes, mind maps, web pages, Word reports, slide decks, spreadsheets, PDFs and infographics from them, using the AI models you already have in OpenChamber.
 
-It is built for anyone aged ten and up who is not technical: pick your files, tap a tile, open the result, save it. Studio chooses sensible defaults and quietly recovers from most problems.
+It is built for everyone. A curious ten-year-old should be able to use it, and so should a history professor who knows nothing about AI, or someone who is not comfortable with computers. Pick your files, tap a tile, open the result, save it. Studio uses plain words without talking down to anyone, chooses sensible defaults, and quietly recovers from most problems. Technical details are there for people who want them, under **About this**.
 
 > **Status: development build, 10 of 12 formats.** Tested on Windows 11 x64 with OpenChamber 2.1.1 and OpenCode 2.0.22. The Fedora build is produced but has not been run on Linux. Podcast and Picture are planned. See [Project status](#project-status).
 
@@ -39,7 +39,7 @@ Studio looks in the project folder and up to two folders down, skipping tool fol
 
 ## What it makes
 
-| Tile | Result | Customize (pencil) | Limits |
+| Tile | Result | Options | Limits |
 |---|---|---|---|
 | Summary | Structured Markdown brief | Short, Standard, Long | About 500 words by default |
 | Report (Word) | Editable `.docx` with headings, paragraphs, bullets and tables | Shorter, Standard, Longer | 12 sections; tables up to 8 columns x 50 rows |
@@ -54,7 +54,7 @@ Studio looks in the project folder and up to two folders down, skipping tool fol
 | Podcast | Planned: two-speaker audio with an optional Kokoro voice pack | | |
 | Picture | Planned: an illustration from an image model | | |
 
-Every pencil also has an optional "What should it focus on?" box. Everything Studio makes uses one font, **Inter**, so the panel, previews and files look alike.
+Each tile's **Options** button also has an optional "What should it focus on?" box. Everything Studio makes uses one font, **Inter**, so the panel, previews and files look alike.
 
 ## Install
 
@@ -73,10 +73,10 @@ Keep the folder where it is: OpenChamber runs the extension from that location. 
 
 1. Open a chat in a project, then open **SurfSense Studio** from the right-hand rail.
 2. Under **Sources**, tick the files to use, and **This chat** if you want the conversation included. Studio ticks a sensible set of files for you and remembers your choice. It will not let you tick more text than it can send.
-3. Tap a tile to make something with the default settings. Or tap the tile's pencil to choose one simple option and, if you like, say what to focus on.
+3. Tap a tile to make something with the default settings. Or tap the tile's **Options** button to choose one simple setting and, if you like, say what to focus on.
 4. Your item appears under **Your creations** with a spinner, then a "ready" message. You can make up to three things at once.
 5. Tap an item to open it. Tap **Save** to put a copy in the project folder, named after its title, such as `Planets quiz.md` or `How a seed grows.png`. Saving never overwrites a file; a second copy becomes `(2)`.
-6. **About this**, under each item, shows the sources, the AI model, file details and anything Studio had to leave out.
+6. **About this**, under each item, shows the sources, the AI model and any changes Studio made, such as text it shortened or left out. The files themselves only say which sources they were made from and when; they never mention AI models or file paths.
 
 The gear in the top corner chooses the AI model. **Automatic** is the default and the recommended choice.
 

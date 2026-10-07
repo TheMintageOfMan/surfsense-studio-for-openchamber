@@ -213,7 +213,7 @@ function paintSources(message) {
   $('select-all').indeterminate = state.selected.size > 0 && state.selected.size < ready.length;
   $('source-hint').textContent = message
     ?? (total ? (count ? '' : 'Tick at least one source to start.')
-      : 'Add a document to this project to get started: text, Markdown, Word, PDF, PowerPoint, Excel, CSV, JSON or a web page.');
+      : 'Add a document to this project folder to get started, such as notes, a Word document, a PDF, slides or a spreadsheet.');
 }
 
 const tooMuch = () => paintSources('That is too much text at once. Untick another source first.');
@@ -271,9 +271,10 @@ function paintTiles() {
     if (format.implemented) {
       const pencil = make('button', 'tile-edit');
       pencil.type = 'button';
-      pencil.setAttribute('aria-label', `Customize ${meta.name}`);
-      pencil.title = 'Customize';
-      pencil.append(icon('pencil', 'icon small'));
+      pencil.setAttribute('aria-label', `Options for ${meta.name}`);
+      pencil.title = 'Choose length, focus and more';
+      // A visible word, not only an icon, so the options are easy to find.
+      pencil.append(icon('pencil', 'icon small'), make('span', 'tile-edit-label', 'Options'));
       pencil.addEventListener('click', () => openCustomize(format.key));
       tile.append(pencil);
     }
@@ -283,7 +284,7 @@ function paintTiles() {
 
 function openCustomize(key) {
   state.customizing = { key, choice: defaultChoice(key) };
-  $('customize-title').textContent = `Customize ${TILES[key].name}`;
+  $('customize-title').textContent = `Options for ${TILES[key].name}`;
   const choice = CHOICES[key];
   $('choice-group').hidden = !choice;
   if (choice) {
@@ -386,8 +387,8 @@ function rowText(row) {
   const count = (row.sources?.length ?? 1) + (row.chat ? 1 : 0);
   const base = `${TILES[row.format]?.name ?? row.format} · ${sourcesLabel(count)} · ${timeAgo(row.createdAt)}`;
   if (row.status === 'completed') return { title: row.title || TILES[row.format].name, sub: base };
-  if (['queued', 'running'].includes(row.status)) return { title: `Making your ${noun}...`, sub: `${sourcesLabel(count)} · This can take a minute` };
-  if (row.status === 'cancelled') return { title: `Stopped ${noun}`, sub: `${base} · Tap to make it again` };
+  if (['queued', 'running'].includes(row.status)) return { title: `Making your ${noun}...`, sub: `${sourcesLabel(count)} · Usually about a minute` };
+  if (row.status === 'cancelled') return { title: `You stopped this ${noun}`, sub: `${base} · Tap to make it again` };
   return { title: `Couldn't make this ${noun}`, sub: `${base} · Tap to try again` };
 }
 
@@ -491,9 +492,9 @@ function paintFacts(record) {
     facts.push(['Behind the scenes', `Took ${tries.length} tries${switched ? `; finished with ${modelName(record.model)}` : ''}.`]);
   }
   if (record.chat?.how === 'compressed') facts.push(['This chat', `It was long (${record.chat.fullCharacters?.toLocaleString() ?? 'many'} characters), so OpenCode shortened it to its key points first, using the chat's own model.`]);
-  if (record.file) facts.push(['File', `${record.file.bytes.toLocaleString()} bytes${record.file.pages ? `, ${record.file.pages} ${record.format === 'pdf' ? 'pages' : record.format === 'pptx' ? 'slides' : 'sheets'}` : ''}. MD5 ${record.file.md5}`]);
+  if (record.file?.pages) facts.push(['Size', `${record.file.pages} ${record.format === 'pdf' ? 'pages' : record.format === 'pptx' ? 'slides' : 'sheets'}`]);
   if (record.savedPath) facts.push(['Last saved as', record.savedPicture ? `${record.savedPicture} and ${record.savedPath}` : record.savedPath]);
-  for (const note of record.notes ?? []) facts.push(['Note', note]);
+  for (const note of record.notes ?? []) facts.push(['Changed', note]);
   $('viewer-facts').replaceChildren(...facts.flatMap(([term, value]) => [make('dt', null, term), make('dd', null, value)]));
 }
 
@@ -505,7 +506,7 @@ async function saveRecord(record) {
     record.savedPath = savedPath;
     const picture = record.format === 'infographic' ? await savePicture(record) : null;
     paintFacts(record);
-    snack(picture ? `Saved "${picture}" and "${savedPath}" in your project folder.` : `Saved as "${savedPath}" in your project folder.`);
+    snack(picture ? `Saved the picture "${picture}" in your project folder, with a copy that stays sharp at any size.` : `Saved as "${savedPath}" in your project folder.`);
   } catch { snack('Saving did not work. Please try again.'); }
   finally { button.disabled = false; }
 }

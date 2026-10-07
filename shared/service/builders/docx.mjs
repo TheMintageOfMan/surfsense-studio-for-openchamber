@@ -47,13 +47,13 @@ export async function buildDocx(artifact, meta) {
     if (section.table) children.push(tableOf(section.table), new Paragraph(''));
   }
   if (meta.notes.length) {
-    children.push(new Paragraph({ text: 'Generation notes', heading: HeadingLevel.HEADING_2 }));
+    children.push(new Paragraph({ text: 'Changes Studio made', heading: HeadingLevel.HEADING_2 }));
     for (const note of meta.notes) children.push(new Paragraph({ text: note, bullet: { level: 0 } }));
   }
   // Every built-in style (headings, title) inherits the document default font.
   const run = { font: FONT_FAMILY };
   const document = new Document({
-    creator: GENERATOR, lastModifiedBy: GENERATOR, title: artifact.title, description: `Generated from ${meta.source} with ${meta.model}.`,
+    creator: GENERATOR, lastModifiedBy: GENERATOR, title: artifact.title, description: `Made from ${meta.source}.`,
     // Embedded so Word shows Inter even where it is not installed. Bold is drawn from the regular face.
     fonts: [{ name: FONT_FAMILY, data: font }],
     styles: {

@@ -20,24 +20,24 @@ export function renderFlashcards(container, record, { saveProgress }) {
     previous: mountButton(slot(actions), { label: 'Previous', variant: 'secondary', size: 'sm', onClick: () => move(-1) }),
     reveal: mountButton(slot(actions), { label: 'Reveal answer', size: 'sm', onClick: () => { revealed = !revealed; paint(); } }),
     next: mountButton(slot(actions), { label: 'Next', variant: 'secondary', size: 'sm', onClick: () => move(1) }),
-    known: mountButton(slot(actions), { label: 'Mark known', variant: 'outline', size: 'sm', onClick: () => {
+    known: mountButton(slot(actions), { label: 'I know this ✓', variant: 'outline', size: 'sm', onClick: () => {
       if (known.has(position)) known.delete(position); else known.add(position);
       paint(); persist();
     } }),
-    reset: mountButton(slot(actions), { label: 'Reset progress', variant: 'ghost', size: 'sm', onClick: () => {
+    reset: mountButton(slot(actions), { label: 'Start over', variant: 'ghost', size: 'sm', onClick: () => {
       known.clear(); position = 0; revealed = false; paint(); persist();
     } }),
   };
 
   function paint() {
-    counter.textContent = `Card ${position + 1} of ${cards.length} | Known: ${known.size} of ${cards.length}`;
+    counter.textContent = `Card ${position + 1} of ${cards.length} · You know ${known.size} of ${cards.length}`;
     front.textContent = cards[position].front;
     back.textContent = cards[position].back;
     back.hidden = !revealed;
     buttons.reveal.update({ label: revealed ? 'Hide answer' : 'Reveal answer' });
     buttons.previous.update({ disabled: position === 0 });
     buttons.next.update({ disabled: position === cards.length - 1 });
-    buttons.known.update({ label: known.has(position) ? 'Unmark known' : 'Mark known' });
+    buttons.known.update({ label: known.has(position) ? 'Not yet' : 'I know this ✓' });
   }
 
   container.append(counter, card, actions);

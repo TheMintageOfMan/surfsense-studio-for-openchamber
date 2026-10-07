@@ -9,14 +9,14 @@ export async function buildPptx(artifact, meta) {
   const deck = new PptxGenJS();
   deck.layout = 'LAYOUT_WIDE';
   deck.theme = { headFontFace: FONT, bodyFontFace: FONT };
-  Object.assign(deck, { author: GENERATOR, company: '', title: artifact.title, subject: `Generated from ${meta.source}` });
+  Object.assign(deck, { author: GENERATOR, company: '', title: artifact.title, subject: `Made from ${meta.source}` });
 
   const cover = deck.addSlide();
   cover.addText(artifact.title, { x: 0.8, y: 2.2, w: 11.7, h: 1.5, fontFace: FONT, fontSize: 40, bold: true, fit: 'shrink' });
   if (artifact.subtitle) cover.addText(artifact.subtitle, { x: 0.8, y: 3.8, w: 11.7, h: 1, fontFace: FONT, fontSize: 22, color: '555555', fit: 'shrink' });
   cover.addText(provenance(meta), { x: 0.8, y: 6.5, w: 11.7, h: 0.5, fontFace: FONT, fontSize: 11, color: '777777' });
   // Omission notes travel with the deck, where a presenter will see them.
-  if (meta.notes.length) cover.addNotes(`Generation notes:\n${meta.notes.map((note) => `- ${note}`).join('\n')}`);
+  if (meta.notes.length) cover.addNotes(`Changes Studio made:\n${meta.notes.map((note) => `- ${note}`).join('\n')}`);
 
   artifact.slides.forEach((slide, index) => {
     const page = deck.addSlide();

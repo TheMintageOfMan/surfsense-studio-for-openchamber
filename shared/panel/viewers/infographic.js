@@ -14,7 +14,7 @@ html, body { margin: 0; background: #fff; overflow: hidden; } svg { display: blo
   // Keep the drawing's own proportions.
   const { width, height } = svgSize(record.artifact.svg);
   frame.style.aspectRatio = `${width} / ${height}`;
-  container.append(el('p', 'muted small', 'Tap Save to get this as a picture (PNG) and as a sharp, scalable SVG.'), frame);
+  container.append(el('p', 'muted small', 'This is a preview. Tap Save to keep it as a picture.'), frame);
   return { dispose() {} };
 }
 

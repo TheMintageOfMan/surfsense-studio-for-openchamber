@@ -14,7 +14,7 @@ export function renderSummary(container, record, { host, status }) {
     event.preventDefault();
     const href = link.getAttribute('href') ?? '';
     if (/^https?:\/\//i.test(href)) void host.openUrl(href).catch((error) => status(error?.message || 'Could not open the link.', true));
-    else status('Open project-relative source links through OpenChamber\'s Files view.');
+    else status('Open files from the Files list in OpenChamber.');
   });
   container.append(article);
   return { dispose() {} };

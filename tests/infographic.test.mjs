@@ -28,12 +28,12 @@ test('infographic replies are checked against the chosen layout, with every chan
   assert.equal(built.artifact.items.length, 4);
   assert.equal(built.artifact.items[3].icon, '', 'icon keywords are plain words only');
   assert.ok(built.artifact.title.endsWith('\u2026') && built.artifact.title.length <= 60);
-  assert.deepEqual(built.notes, ['Omitted 1 item without a label.', 'Shortened 1 piece of text to fit the layout; each cut is marked with "\u2026".']);
+  assert.deepEqual(built.notes, ['Left out 1 item without a name.', 'Shortened 1 piece of text to fit; each cut is marked with "\u2026".']);
   assert.throws(() => infographic.build('{"layout":"spaceship","title":"x"}'), { code: 'BAD_OUTPUT' });
   assert.throws(() => infographic.build(JSON.stringify({ layout: 'compare', title: 'x', groups: [{ label: 'A', items: ['a'] }] })), { code: 'EMPTY_RESULT' });
   assert.throws(() => infographic.build(JSON.stringify({ layout: 'pie', title: 'x', values: [{ label: 'A', value: 'lots' }, { label: 'B', value: -1 }] })), { code: 'EMPTY_RESULT' });
   const tree = infographic.build(JSON.stringify({ layout: 'tree', title: 'T', root: { label: 'R', children: [{ label: 'A', children: [{ label: 'A1', children: [{ label: 'too deep' }] }] }] } }));
-  assert.deepEqual(tree.notes, ['Omitted 1 branch beyond 3 levels or 20 boxes.']);
+  assert.deepEqual(tree.notes, ['Left out 1 smaller branch to keep the tree readable.']);
   assert.deepEqual(libraryOptions(tree.artifact).data.items, [tree.artifact.root]);
   assert.equal(libraryOptions(infographic.build(JSON.stringify(steps)).artifact).template, LAYOUTS.steps.template);
 });

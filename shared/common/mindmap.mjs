@@ -57,9 +57,9 @@ export const mindmap = Object.freeze({
     const nodes = branches.slice(0, BRANCHES);
     if (!nodes.length) throw new StudioError('EMPTY_RESULT', 'The model returned no usable mind map branches. Nothing was saved; regenerate explicitly.');
     const notes = [];
-    if (unlabeled) notes.push(`Omitted ${plural(unlabeled, 'node')} under unlabeled entries.`);
-    if (deep) notes.push(`Omitted ${plural(deep, 'node')} deeper than ${DEPTH} levels.`);
-    if (branches.length > BRANCHES) notes.push(`The model returned ${branches.length} main branches; this build keeps the first ${BRANCHES}.`);
+    if (unlabeled) notes.push(`Left out ${plural(unlabeled, 'idea')} under blank entries.`);
+    if (deep) notes.push(`Left out ${plural(deep, 'idea')} more than ${DEPTH} levels deep.`);
+    if (branches.length > BRANCHES) notes.push(`Kept the first ${BRANCHES} of ${branches.length} main branches.`);
     const title = asText(spec.title) || 'Mind map';
     const lines = [`# ${title}`];
     const outline = (items, depth) => items.forEach((node) => {

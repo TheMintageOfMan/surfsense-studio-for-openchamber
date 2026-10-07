@@ -29,7 +29,7 @@ const directory = async () => { await fs.mkdir('temp', { recursive: true }); ret
 test('several sources, a choice and focus all reach the prompt; bad choices are refused', () => {
   const input = validateJob(request({ choice: 'hard', instructions: 'planets' }));
   const prompt = quiz.prompt(input);
-  for (const text of ['"path":"a.md"', '"path":"notes/b.txt"', 'Alpha.', 'Beta.', '"focus":"planets"', 'Difficulty: hard']) assert.ok(prompt.includes(text), text);
+  for (const text of ['"name":"a"', '"name":"b"', 'Alpha.', 'Beta.', '"focus":"planets"', 'Difficulty: hard']) assert.ok(prompt.includes(text), text);
   assert.equal(validateJob(request()).choice, 'medium');
   assert.throws(() => validateJob(request({ choice: 'impossible' })), { code: 'BAD_CHOICE' });
   assert.throws(() => validateJob(request({ sources: [{ path: 'a.md', content: 'x' }, { path: 'a.md', content: 'y' }] })), { code: 'BAD_SOURCE' });

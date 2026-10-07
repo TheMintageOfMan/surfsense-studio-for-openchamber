@@ -52,13 +52,13 @@ test('Word and PDF replies keep valid sections and disclose every omission', () 
   assert.deepEqual(built.artifact.sections[0].table.rows, [['1', '2'], ['5', '6']]);
   assert.equal(built.artifact.sections[1].table, null);
   assert.deepEqual(built.notes, [
-    'Omitted 1 section without text, bullets or a usable table.',
-    'Omitted 1 row from the table in section 1 whose length did not match its 2 columns.',
-    `Omitted the table in section 3 because it has 9 columns; this build allows ${DOCUMENT_CAPS.tableColumns}.`,
+    'Left out 1 empty section.',
+    'Left out 1 incomplete row from the table in section 1.',
+    `Left out the table in section 3 because it had 9 columns (the most is ${DOCUMENT_CAPS.tableColumns}).`,
   ]);
   assert.match(built.markdown, /\| A \| B \|\n\| --- \| --- \|\n\| 1 \| 2 \|/);
   const many = { title: 'T', sections: Array.from({ length: 14 }, (_, i) => ({ heading: `S${i}`, paragraphs: ['p'] })) };
-  assert.match(pdf.build(JSON.stringify(many)).notes.at(-1), /returned 14 usable sections; this build keeps the first 12/);
+  assert.match(pdf.build(JSON.stringify(many)).notes.at(-1), /^Kept the first 12 of 14 sections\.$/);
   assert.throws(() => pdf.build('{"title":"T","sections":[]}'), { code: 'EMPTY_RESULT' });
   assert.throws(() => docx.build('{"title": "cut off'), { code: 'BAD_OUTPUT' });
 });
@@ -69,8 +69,8 @@ test('Slides keep titled slides, cap bullets and slides, and disclose both', () 
   assert.equal(built.artifact.slides.length, DOCUMENT_CAPS.slides);
   assert.equal(built.artifact.slides[0].bullets.length, DOCUMENT_CAPS.bullets);
   assert.deepEqual(built.notes, [
-    'Omitted 1 slide without a title and bullets.', '1 slide had more than 6 bullets; this build keeps the first 6 on each.',
-    'The model returned 16 usable slides; this build keeps the first 15.',
+    'Left out 1 slide without a title or points.', 'Kept the first 6 points on 1 slide that had more.',
+    'Kept the first 15 of 16 slides.',
   ]);
 });
 
@@ -82,11 +82,11 @@ test('Spreadsheet keeps source values only, checks row lengths and sanitizes she
   assert.equal(notes.name, 'Notes 2');
   assert.deepEqual(sites.rows, [['PDX', 12, null], ['=1+1', 2.5, null], ['IAD', null, 'x']]);
   assert.deepEqual(built.notes, [
-    'Omitted 1 row from the table "Sites: [west]" whose length did not match its 3 columns.',
-    'Omitted the table "Empty" because it had no rows.',
-    'Renamed sheet "Sites: [west]" to "Sites west" to meet Excel\'s sheet-name rules.',
-    'Renamed sheet "Notes" to "Notes 2" to meet Excel\'s sheet-name rules.',
-    'Left 1 cell empty because the value was not text, a number or null.',
+    'Left out 1 incomplete row from the table "Sites: [west]".',
+    'Left out the table "Empty" because it had no rows.',
+    'Renamed the sheet "Sites: [west]" to "Sites west", because Excel does not allow that name.',
+    'Renamed the sheet "Notes" to "Notes 2", because Excel does not allow that name.',
+    'Left 1 cell blank because the value could not be used.',
   ]);
   const taken = new Set();
   assert.equal(sheetName('x'.repeat(40), taken, 0), 'x'.repeat(31));
@@ -119,7 +119,7 @@ test('built files are valid packages, carry the text, and rebuild byte-identical
   assert.equal(one.bytes.subarray(0, 5).toString(), '%PDF-');
   assert.match(one.bytes.subarray(-32).toString(), /%%EOF\s*$/);
   assert.equal(one.pages, 1);
-  assert.deepEqual(one.notes, ['The PDF font has no glyph for 1 character (U+1F680); each appears as "?".']);
+  assert.deepEqual(one.notes, ['One character (\u{1F680}) could not be shown in the PDF and appears as "?".']);
 });
 
 test('document jobs store the file, export its exact bytes, and refuse overwrites', async () => {

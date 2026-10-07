@@ -28,9 +28,9 @@ export const ICONS = {
 export const TILES = {
   summary: { name: 'Summary', color: '#4f7cff', blurb: 'The key points' },
   docx: { name: 'Report', color: '#2b6cd8', blurb: 'Word document' },
-  pptx: { name: 'Slides', color: '#e8743b', blurb: 'PowerPoint deck' },
-  xlsx: { name: 'Data table', color: '#1f9d6b', blurb: 'Excel spreadsheet' },
-  webpage: { name: 'Web page', color: '#8a5cf6', blurb: 'A page to share' },
+  pptx: { name: 'Slides', color: '#e8743b', blurb: 'A slideshow' },
+  xlsx: { name: 'Data table', color: '#1f9d6b', blurb: 'Facts in a table' },
+  webpage: { name: 'Web page', color: '#8a5cf6', blurb: 'A page for the web' },
   pdf: { name: 'PDF', color: '#d64545', blurb: 'Ready to print' },
   mindmap: { name: 'Mind map', color: '#0fa3b1', blurb: 'See how ideas connect' },
   flashcards: { name: 'Flashcards', color: '#e0a400', blurb: 'Practice and remember' },

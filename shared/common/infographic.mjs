@@ -43,8 +43,8 @@ function buildItems(spec, notes, counter) {
   const offered = asList(spec.items);
   const usable = offered.map((item) => ({ label: fit(item?.label, TEXT.label, counter), desc: fit(item?.desc, TEXT.itemDesc, counter), icon: iconWord(item?.icon) }))
     .filter((item) => item.label);
-  if (usable.length < offered.length) notes.push(`Omitted ${plural(offered.length - usable.length, 'item')} without a label.`);
-  if (usable.length > ITEMS.max) notes.push(`The model returned ${usable.length} items; this layout keeps the first ${ITEMS.max}.`);
+  if (usable.length < offered.length) notes.push(`Left out ${plural(offered.length - usable.length, 'item')} without a name.`);
+  if (usable.length > ITEMS.max) notes.push(`Kept the first ${ITEMS.max} of ${usable.length} items.`);
   const items = usable.slice(0, ITEMS.max);
   if (items.length < ITEMS.min) throw new StudioError('EMPTY_RESULT', `The model returned fewer than ${ITEMS.min} usable items.`);
   return { items };
@@ -64,8 +64,8 @@ function buildValues(spec, notes, counter) {
   const offered = asList(spec.values);
   const values = offered.map((entry) => ({ label: fit(entry?.label, TEXT.label, counter), value: entry?.value }))
     .filter((entry) => entry.label && typeof entry.value === 'number' && Number.isFinite(entry.value) && entry.value >= 0);
-  if (values.length < offered.length) notes.push(`Omitted ${plural(offered.length - values.length, 'value')} without a label and a number of zero or more.`);
-  if (values.length > ITEMS.max) notes.push(`The model returned ${values.length} values; this chart keeps the first ${ITEMS.max}.`);
+  if (values.length < offered.length) notes.push(`Left out ${plural(offered.length - values.length, 'value')} without a name or a usable number.`);
+  if (values.length > ITEMS.max) notes.push(`Kept the first ${ITEMS.max} of ${values.length} values.`);
   const kept = values.slice(0, ITEMS.max);
   if (kept.length < 2 || !kept.some((entry) => entry.value > 0)) throw new StudioError('EMPTY_RESULT', 'The model returned too few usable numbers for a chart.');
   return { values: kept };
@@ -88,7 +88,7 @@ function buildTree(spec, notes, counter) {
   };
   const root = walk(spec.root, 1);
   if (!root || !root.children.length) throw new StudioError('EMPTY_RESULT', 'The model returned no usable tree.');
-  if (dropped) notes.push(`Omitted ${dropped} branch${dropped === 1 ? '' : 'es'} beyond ${TREE.depth} levels or ${TREE.nodes} boxes.`);
+  if (dropped) notes.push(`Left out ${dropped} smaller branch${dropped === 1 ? '' : 'es'} to keep the tree readable.`);
   return { root };
 }
 
@@ -162,7 +162,7 @@ export const infographic = Object.freeze({
       : chosen.kind === 'groups' ? buildGroups(spec, notes, counter, chosen.groups)
         : chosen.kind === 'values' ? buildValues(spec, notes, counter)
           : buildTree(spec, notes, counter);
-    if (counter.shortened) notes.push(`Shortened ${counter.shortened} piece${counter.shortened === 1 ? '' : 's'} of text to fit the layout; each cut is marked with "\u2026".`);
+    if (counter.shortened) notes.push(`Shortened ${counter.shortened} piece${counter.shortened === 1 ? '' : 's'} of text to fit; each cut is marked with "\u2026".`);
     const artifact = { layout, title, desc, ...body };
     return { title, markdown: markdownOf(artifact), artifact, notes };
   },
