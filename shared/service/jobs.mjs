@@ -1,12 +1,16 @@
 import { createHash } from 'node:crypto';
 import { LIMITS, StudioError } from '../common/core.mjs';
 import { formatFor, validateJob } from '../common/formats.mjs';
-import { exportFile, listRecords, readRecord, writeRecord } from './storage.mjs';
+import { buildFile, fileMeta } from './builders/index.mjs';
+import { exportFile, listRecords, readArtifactFile, readRecord, writeArtifactFile, writeRecord } from './storage.mjs';
+
+// Generous for 12 sections or 15 slides of text; a larger file means something went wrong.
+const FILE_BYTES = 20 * 1024 * 1024;
 
 const unfinished = (record) => ['queued', 'running'].includes(record.status);
 const sameDirectory = (a, b) => process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b;
 const digest = (text) => createHash('md5').update(text).digest('hex');
-const clearOutput = (record) => Object.assign(record, { title: null, markdown: null, artifact: null, notes: [] });
+const clearOutput = (record) => Object.assign(record, { title: null, markdown: null, artifact: null, notes: [], file: null });
 
 export class StudioJobs {
   #active = new Map();
@@ -31,7 +35,7 @@ export class StudioJobs {
       createdAt: new Date().toISOString(), ownerPid: process.pid, fingerprint,
       source: { path: input.source.path, characters: input.source.content.length, md5: digest(input.source.content) },
       instructions: input.instructions, model: input.model,
-      title: null, markdown: null, artifact: null, notes: [], progress: null, savedPath: null, error: null,
+      title: null, markdown: null, artifact: null, notes: [], file: null, progress: null, savedPath: null, error: null,
     };
     const controller = new AbortController();
     const job = { directory, record, controller };
@@ -67,6 +71,8 @@ export class StudioJobs {
       if (JSON.stringify(this.public(record)).length > LIMITS.response) {
         throw new StudioError('OUTPUT_TOO_LARGE', 'This artifact is too large for the host bridge. It was not truncated.');
       }
+      if (format.binary) await this.#storeFile(directory, record, format);
+      if (controller.signal.aborted) return;
       record.status = 'completed';
       record.completedAt = new Date().toISOString();
     } catch (error) {
@@ -90,6 +96,20 @@ export class StudioJobs {
       }
       this.#active.delete(record.id);
     }
+  }
+
+  // The file is built once from the validated artifact; export copies these exact bytes.
+  async #storeFile(directory, record, format) {
+    let built;
+    try { built = await buildFile(format.key, record.artifact, fileMeta(record)); }
+    catch (error) {
+      console.error(`Studio could not build a ${format.label} file: ${error?.message}`);
+      throw new StudioError('BUILD_FAILED', `Studio could not build the ${format.label} file from this reply. Nothing was saved; regenerate explicitly.`);
+    }
+    if (built.bytes.length > FILE_BYTES) throw new StudioError('OUTPUT_TOO_LARGE', `The ${format.label} file exceeds this build's size limit.`);
+    record.notes = [...record.notes, ...built.notes];
+    const name = await writeArtifactFile(directory, record, format.extension, built.bytes);
+    record.file = { name, bytes: built.bytes.length, md5: digest(built.bytes), pages: built.pages };
   }
 
   async get(directory, id) {
@@ -157,7 +177,12 @@ export class StudioJobs {
 
   save(directory, id, filename) {
     return this.#update(directory, id, async (record, format) => {
-      const content = format.exportContent ? format.exportContent(record) : record.markdown;
+      let content;
+      if (format.binary) {
+        // Binary bytes are copied service-side; they never travel through the panel bridge.
+        content = await readArtifactFile(directory, record, FILE_BYTES);
+        if (digest(content) !== record.file.md5) throw new StudioError('FILE_CHANGED', 'The stored file no longer matches this artifact. Regenerate explicitly.', 409);
+      } else content = format.exportContent ? format.exportContent(record) : record.markdown;
       record.savedPath = await exportFile(directory, content, filename, format.extension);
       return { savedPath: record.savedPath };
     });

@@ -48,4 +48,18 @@ section > div { margin-bottom: 10px; }
 .mindmap-svg { display: block; width: 100%; height: 440px; }
 .outline pre { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--oc-font-mono, monospace); font-size: 11px; }
 .webpage-frame { display: block; width: 100%; height: 520px; border: 1px solid var(--oc-border, #8884); border-radius: 8px; background: #fff; }
-[hidden] { display: none !important; }
+.doc-page { border: 1px solid var(--oc-border, #8884); border-radius: 8px; padding: 14px 18px; overflow-wrap: anywhere; }
+.doc-page h1 { font-size: 19px; margin: 4px 0 6px; }
+.doc-page h2 { font-size: 15px; margin: 16px 0 6px; }
+.doc-subtitle { opacity: .75; font-style: italic; }
+.doc-table { max-width: 100%; overflow-x: auto; margin: 8px 0 12px; }
+.doc-table table { border-collapse: collapse; font-size: 12px; }
+.doc-table th, .doc-table td { border: 1px solid var(--oc-border, #8884); padding: 4px 7px; text-align: left; vertical-align: top; }
+.doc-table th { font-weight: 600; background: color-mix(in srgb, var(--oc-border, #8884) 35%, transparent); }
+.slide { position: relative; aspect-ratio: 16 / 9; border: 1px solid var(--oc-border, #8884); border-radius: 8px; padding: 14px 18px; margin: 0 0 10px; overflow: auto; overflow-wrap: anywhere; }
+.slide h3 { font-size: 15px; margin: 0 0 8px; padding-right: 28px; }
+.slide-cover { display: flex; flex-direction: column; justify-content: center; }
+.slide-cover h3 { font-size: 20px; }
+.slide-number { position: absolute; top: 8px; right: 12px; font-size: 11px; opacity: .6; }
+.slide-notes { font-size: 11px; opacity: .75; border-top: 1px dashed var(--oc-border, #8884); padding-top: 6px; }
+.sheet h3 { font-size: 14px; margin: 14px 0 4px; }[hidden] { display: none !important; }

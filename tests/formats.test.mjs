@@ -31,11 +31,11 @@ async function settle(jobs, root, id) {
   throw new Error('The controlled test transport did not settle.');
 }
 
-test('catalog shows all 12 formats and implements the five text formats only', () => {
+test('catalog shows all 12 formats and implements the nine text and document formats only', () => {
   assert.equal(FORMATS.length, 12);
-  assert.deepEqual(IMPLEMENTED.map((format) => format.key).sort(), ['flashcards', 'mindmap', 'quiz', 'summary', 'webpage']);
+  assert.deepEqual(IMPLEMENTED.map((format) => format.key).sort(), ['docx', 'flashcards', 'mindmap', 'pdf', 'pptx', 'quiz', 'summary', 'webpage', 'xlsx']);
   assert.ok(FORMATS.filter((format) => !format.implemented).every((format) => format.reason.startsWith('Not built yet')));
-  assert.throws(() => validateJob(request('docx')), { code: 'BAD_FORMAT' });
+  assert.throws(() => validateJob(request('podcast')), { code: 'BAD_FORMAT' });
   // Every prompt carries the complete source; nothing is excerpted.
   for (const format of IMPLEMENTED) assert.ok(format.prompt(validateJob(request(format.key))).includes(JSON.stringify(source)));
 });

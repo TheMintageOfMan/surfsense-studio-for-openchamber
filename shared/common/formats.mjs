@@ -1,21 +1,21 @@
 import { LIMITS, requireJobId, StudioError, validSourcePath } from './core.mjs';
+import { docx, pdf, pptx, xlsx } from './documents.mjs';
 import { flashcards } from './flashcards.mjs';
 import { mindmap } from './mindmap.mjs';
 import { quiz } from './quiz.mjs';
 import { summary } from './summary.mjs';
 import { webpage } from './webpage.mjs';
 
-const worker = 'Not built yet: needs the bundled document worker.';
 const planned = (key, label, reason) => Object.freeze({ key, label, implemented: false, reason });
 
 // Grid order follows SurfSense's Studio panel.
 export const FORMATS = Object.freeze([
   summary,
-  planned('docx', 'Word', worker),
-  planned('pptx', 'Slides', worker),
-  planned('xlsx', 'Spreadsheet', worker),
+  docx,
+  pptx,
+  xlsx,
   webpage,
-  planned('pdf', 'PDF', worker),
+  pdf,
   mindmap,
   flashcards,
   quiz,
