@@ -36,11 +36,11 @@ export const TILES = {
   quiz: { name: 'Quiz', color: '#d6457a', blurb: 'Test yourself' },
   podcast: { name: 'Podcast', color: '#7a7f87', blurb: 'Coming soon' },
   image: { name: 'Picture', color: '#7a7f87', blurb: 'Coming soon' },
-  infographic: { name: 'Infographic', color: '#7a7f87', blurb: 'Coming soon' },
+  infographic: { name: 'Infographic', color: '#f06d3a', blurb: 'One-page poster' },
 };
 
 // What a finished item is called in messages: "Your quiz is ready".
 export const NOUNS = {
   summary: 'summary', docx: 'report', pptx: 'slides', xlsx: 'data table', webpage: 'web page', pdf: 'PDF',
-  mindmap: 'mind map', flashcards: 'flashcards', quiz: 'quiz',
+  mindmap: 'mind map', flashcards: 'flashcards', quiz: 'quiz', infographic: 'infographic',
 };

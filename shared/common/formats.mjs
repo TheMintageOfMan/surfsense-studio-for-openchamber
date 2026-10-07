@@ -1,6 +1,7 @@
 import { LIMITS, requireJobId, sourcesOf, StudioError, validSourcePath } from './core.mjs';
 import { docx, pdf, pptx, xlsx } from './documents.mjs';
 import { flashcards } from './flashcards.mjs';
+import { infographic } from './infographic.mjs';
 import { mindmap } from './mindmap.mjs';
 import { quiz } from './quiz.mjs';
 import { summary } from './summary.mjs';
@@ -21,7 +22,7 @@ export const FORMATS = Object.freeze([
   quiz,
   planned('podcast', 'Podcast', 'Not built yet: needs the optional Kokoro audio pack.'),
   planned('image', 'Image', 'Not built yet: needs an image-generation model.'),
-  planned('infographic', 'Infographic', 'Not built yet: needs an image-generation model.'),
+  infographic,
 ]);
 
 export const IMPLEMENTED = Object.freeze(FORMATS.filter((format) => format.implemented));
@@ -62,6 +63,10 @@ export const CHOICES = Object.freeze({
     { id: 'easy', label: 'Easy', hint: 'Difficulty: easy. Test the main facts with clearly different options.' },
     { id: 'medium', label: 'Medium', hint: '', default: true },
     { id: 'hard', label: 'Hard', hint: 'Difficulty: hard. Test fine distinctions and links between parts of the source.' },
+  ]),
+  infographic: choice('Detail', [
+    { id: 'simple', label: 'Simple', hint: 'Detail: simple. Use the fewest items that tell the story, and keep descriptions very short.' },
+    { id: 'detailed', label: 'Detailed', hint: '', default: true },
   ]),
   mindmap: choice('Detail', [
     { id: 'simple', label: 'Simple', hint: 'Detail: simple. Fewer branches, two levels deep.' },

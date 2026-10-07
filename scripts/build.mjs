@@ -9,7 +9,8 @@ const targets = [
   { folder: 'windows-11-x64', platform: 'win32', arch: 'x64' },
   { folder: 'linux-fedora-amd64', platform: 'linux', arch: 'x64' },
 ];
-const FONTS = ['DejaVuSans.ttf', 'DejaVuSans-Bold.ttf'];
+// Inter, the one Studio font: TTF for PDF and Word embedding, WOFF2 for the panel, web pages and SVG.
+const SERVICE_FONTS = ['Inter-Regular.ttf', 'Inter-Bold.ttf', 'Inter-Regular.woff2', 'Inter-Bold.woff2'];
 const SEPARATOR = '\n\n----------------------------------------\n\n';
 
 // Only packages that actually contribute bytes to a bundle need their notices shipped.
@@ -43,8 +44,8 @@ async function licenses(inputs) {
     '',
   ].join('\n'));
   entries.push(await fs.readFile(path.join(root, 'shared/licenses/SurfSense-LICENSE.txt'), 'utf8'));
-  entries.push(`DejaVu Sans 2.37 (https://github.com/dejavu-fonts/dejavu-fonts), files ${FONTS.join(', ')} in service/fonts/, unmodified.\nThe upstream license file follows verbatim.\n`);
-  entries.push(await fs.readFile(path.join(root, 'shared/fonts/DejaVu-LICENSE.txt'), 'utf8'));
+  entries.push(`Inter 4.1 (https://github.com/rsms/inter), files ${SERVICE_FONTS.join(', ')} in service/fonts/ (and the WOFF2 faces inside panel/main.js), unmodified.\nEmbedded in generated Word documents, web pages, infographics and PDFs. The upstream license file follows verbatim.\n`);
+  entries.push(await fs.readFile(path.join(root, 'shared/fonts/Inter-LICENSE.txt'), 'utf8'));
   return entries.join(SEPARATOR) + '\n';
 }
 
@@ -64,15 +65,21 @@ for (const target of targets) {
   const directory = path.join(root, target.folder);
   await fs.mkdir(path.join(directory, 'panel'), { recursive: true });
   await fs.mkdir(path.join(directory, 'service/fonts'), { recursive: true });
-  const [panel, service] = await Promise.all([
-    build({ absWorkingDir: root, entryPoints: ['shared/panel/main.js'], outfile: path.join(directory, 'panel/main.js'), bundle: true, platform: 'browser', format: 'iife', target: 'es2022', minify: true, legalComments: 'eof', metafile: true }),
-    build({ absWorkingDir: root, entryPoints: ['shared/service/main.mjs'], outfile: path.join(directory, 'service/main.js'), bundle: true, platform: 'node', format: 'esm', target: 'node22', minify: true, legalComments: 'eof', metafile: true, define: { __STUDIO_TARGET__: JSON.stringify(target), __STUDIO_FONTS__: JSON.stringify('./fonts/') },
-      // The document libraries are CommonJS and require Node built-ins at runtime.
-      banner: { js: "import { createRequire as __studioRequire } from 'node:module'; const require = __studioRequire(import.meta.url);" },
-      alias: { 'brotli/decompress.js': './shared/service/builders/no-brotli.mjs' } }),
+  const node = {
+    absWorkingDir: root, bundle: true, platform: 'node', format: 'esm', target: 'node22', minify: true, legalComments: 'eof', metafile: true,
+    define: { __STUDIO_TARGET__: JSON.stringify(target), __STUDIO_FONTS__: JSON.stringify('./fonts/'), __STUDIO_WORKER__: JSON.stringify('./infographic-worker.js') },
+    // The document libraries are CommonJS and require Node built-ins at runtime.
+    banner: { js: "import { createRequire as __studioRequire } from 'node:module'; const require = __studioRequire(import.meta.url);" },
+    alias: { 'brotli/decompress.js': './shared/service/builders/no-brotli.mjs' },
+  };
+  const [panel, service, worker] = await Promise.all([
+    // The panel bundles its two font faces (base64); see shared/panel/fonts.js.
+    build({ absWorkingDir: root, entryPoints: ['shared/panel/main.js'], outfile: path.join(directory, 'panel/main.js'), bundle: true, platform: 'browser', format: 'iife', target: 'es2022', minify: true, legalComments: 'eof', metafile: true, loader: { '.woff2': 'base64' } }),
+    build({ ...node, entryPoints: ['shared/service/main.mjs'], outfile: path.join(directory, 'service/main.js') }),
+    // AntV Infographic runs in its own thread; see shared/service/builders/infographic-worker.mjs.
+    build({ ...node, entryPoints: ['shared/service/builders/infographic-worker.mjs'], outfile: path.join(directory, 'service/infographic-worker.js') }),
   ]);
-  // The PDF builder reads these at runtime; see shared/service/builders/pdf.mjs.
-  for (const file of FONTS) await fs.copyFile(path.join(root, 'shared/fonts', file), path.join(directory, 'service/fonts', file));
+  for (const file of SERVICE_FONTS) await fs.copyFile(path.join(root, 'shared/fonts', file), path.join(directory, 'service/fonts', file));
   for (const file of ['index.html', 'styles.css', 'icon.svg']) {
     await fs.copyFile(path.join(root, 'shared/panel', file), path.join(directory, 'panel', file));
   }
@@ -89,7 +96,7 @@ for (const target of targets) {
     },
   };
   await fs.writeFile(path.join(directory, 'package.json'), JSON.stringify(manifest, null, 2) + '\n');
-  await fs.writeFile(path.join(directory, 'THIRD-PARTY-LICENSES.txt'), await licenses(bundledInputs(panel, service)));
+  await fs.writeFile(path.join(directory, 'THIRD-PARTY-LICENSES.txt'), await licenses(bundledInputs(panel, service, worker)));
   const size = await inventory(directory);
   if (size.bytes > 40 * 1024 * 1024 || size.files > 500) throw new Error(`${target.folder} exceeds the inspected extension extraction limits.`);
   console.log(`${target.folder}: ${size.bytes} expanded bytes, ${size.files} files. Runtime validation is separate from a successful build.`);

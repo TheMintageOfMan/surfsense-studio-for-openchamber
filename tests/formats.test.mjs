@@ -9,6 +9,7 @@ import { mindmap } from '../shared/common/mindmap.mjs';
 import { quiz } from '../shared/common/quiz.mjs';
 import { buildWebPage, webpage, webpageMeta } from '../shared/common/webpage.mjs';
 import { StudioJobs } from '../shared/service/jobs.mjs';
+import { embeddedFontCss } from '../shared/service/fonts.mjs';
 
 // Controlled replies exercise parsing, validation and persistence, not model quality.
 const source = await fs.readFile(new URL('../SPEC.md', import.meta.url), 'utf8');
@@ -31,9 +32,9 @@ async function settle(jobs, root, id) {
   throw new Error('The controlled test transport did not settle.');
 }
 
-test('catalog shows all 12 formats and implements the nine text and document formats only', () => {
+test('catalog shows all 12 formats and implements all but Podcast and Picture', () => {
   assert.equal(FORMATS.length, 12);
-  assert.deepEqual(IMPLEMENTED.map((format) => format.key).sort(), ['docx', 'flashcards', 'mindmap', 'pdf', 'pptx', 'quiz', 'summary', 'webpage', 'xlsx']);
+  assert.deepEqual(IMPLEMENTED.map((format) => format.key).sort(), ['docx', 'flashcards', 'infographic', 'mindmap', 'pdf', 'pptx', 'quiz', 'summary', 'webpage', 'xlsx']);
   assert.ok(FORMATS.filter((format) => !format.implemented).every((format) => format.reason.startsWith('Not built yet')));
   assert.throws(() => validateJob(request('podcast')), { code: 'BAD_FORMAT' });
   // Every prompt carries the complete source; nothing is excerpted.
@@ -99,7 +100,10 @@ test('structured jobs persist artifacts and progress, and exports match the prev
   assert.equal((await settle(jobs, root, page.id)).status, 'completed');
   await jobs.save(root, page.id, 'page.html');
   const restored = await new StudioJobs().get(root, page.id);
-  assert.equal(await fs.readFile(path.join(root, 'page.html'), 'utf8'), buildWebPage(restored.artifact, webpageMeta(restored)));
+  // The saved page carries Inter inline; the panel preview supplies the same font itself.
+  const saved = await fs.readFile(path.join(root, 'page.html'), 'utf8');
+  assert.equal(saved, buildWebPage(restored.artifact, webpageMeta(restored), await embeddedFontCss()));
+  assert.ok(saved.includes('font-family: Inter') && saved.includes('data:font/woff2;base64,'));
   await assert.rejects(jobs.save(root, page.id, 'page.html'), { code: 'FILE_EXISTS' });
   await assert.rejects(jobs.save(root, page.id, 'page.md'), { code: 'BAD_FILENAME' });
   await assert.rejects(jobs.saveProgress(root, page.id, { answers: [1] }), { code: 'NO_PROGRESS' });

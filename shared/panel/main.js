@@ -2,9 +2,11 @@
 // user; problems are retried quietly by the service and only reach the user as plain words.
 import { connectHost } from '@openchamber/sdk';
 import { applyHostReady } from '@openchamber/sdk/ui';
+import { installPanelFont } from './fonts.js';
 import { LIMITS } from '../common/core.mjs';
 import { CHOICES, FORMATS, defaultChoice } from '../common/formats.mjs';
 import { ICONS, NOUNS, TILES } from './icons.js';
+import { pictureBase64 } from './viewers/infographic.js';
 import { renderViewer } from './viewers/index.js';
 
 const host = connectHost();
@@ -245,7 +247,7 @@ function paintTiles() {
       main.disabled = true;
       main.title = 'Coming soon';
     } else {
-      main.title = `Make a ${NOUNS[format.key]}`;
+      main.title = `Make ${/^[aeiou]/i.test(NOUNS[format.key]) ? 'an' : 'a'} ${NOUNS[format.key]}`;
       main.addEventListener('click', () => { void create(format.key); });
     }
     tile.append(main);
@@ -472,7 +474,7 @@ function paintFacts(record) {
     facts.push(['Behind the scenes', `Took ${tries.length} tries${switched ? `; finished with ${modelName(record.model)}` : ''}.`]);
   }
   if (record.file) facts.push(['File', `${record.file.bytes.toLocaleString()} bytes${record.file.pages ? `, ${record.file.pages} ${record.format === 'pdf' ? 'pages' : record.format === 'pptx' ? 'slides' : 'sheets'}` : ''}. MD5 ${record.file.md5}`]);
-  if (record.savedPath) facts.push(['Last saved as', record.savedPath]);
+  if (record.savedPath) facts.push(['Last saved as', record.savedPicture ? `${record.savedPicture} and ${record.savedPath}` : record.savedPath]);
   for (const note of record.notes ?? []) facts.push(['Note', note]);
   $('viewer-facts').replaceChildren(...facts.flatMap(([term, value]) => [make('dt', null, term), make('dd', null, value)]));
 }
@@ -483,10 +485,32 @@ async function saveRecord(record) {
   try {
     const { savedPath } = await rpc('POST', `/jobs/${record.id}/save`, { context: state.context });
     record.savedPath = savedPath;
+    const picture = record.format === 'infographic' ? await savePicture(record) : null;
     paintFacts(record);
-    snack(`Saved as "${savedPath}" in your project folder.`);
+    snack(picture ? `Saved "${picture}" and "${savedPath}" in your project folder.` : `Saved as "${savedPath}" in your project folder.`);
   } catch { snack('Saving did not work. Please try again.'); }
   finally { button.disabled = false; }
+}
+
+// The PNG is drawn here (its text needs a browser) and sent in bridge-sized pieces.
+// If anything fails, the SVG that was already saved still stands; nothing is shown.
+async function savePicture(record) {
+  try {
+    const data = await pictureBase64(record.artifact.svg);
+    const upload = crypto.randomUUID();
+    const size = 45_000;
+    const total = Math.ceil(data.length / size);
+    let result;
+    for (let index = 0; index < total; index += 1) {
+      result = await rpc('POST', `/jobs/${record.id}/picture`, { context: state.context, upload, index, total, data: data.slice(index * size, (index + 1) * size) });
+    }
+    record.savedPicture = result.savedPath;
+    return result.savedPath;
+  } catch (error) {
+    // The SVG is already saved; the picture is a bonus, so only the console hears about it.
+    console.error('Studio could not save the PNG picture:', error);
+    return null;
+  }
 }
 
 // ---------- settings ----------
@@ -505,6 +529,7 @@ function paintSettings() {
 // ---------- wiring ----------
 
 function mount() {
+  installPanelFont();
   $('open-settings').append(icon('gear'));
   $('viewer-back').append(icon('back'));
   $('viewer-back').addEventListener('click', closeViewer);

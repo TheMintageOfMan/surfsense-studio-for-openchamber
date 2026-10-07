@@ -69,7 +69,7 @@ export function createStudioServer({ token, gateway, jobs = new StudioJobs() }) 
         json(response, 202, jobs.public(record));
         return;
       }
-      const match = url.pathname.match(/^\/jobs\/([^/]+)(?:\/(cancel|save|progress))?$/);
+      const match = url.pathname.match(/^\/jobs\/([^/]+)(?:\/(cancel|save|progress|picture))?$/);
       if (match) {
         const id = requireJobId(match[1]);
         if (request.method === 'GET' && !match[2]) {
@@ -82,6 +82,10 @@ export function createStudioServer({ token, gateway, jobs = new StudioJobs() }) 
         }
         if (request.method === 'POST' && match[2] === 'save') {
           json(response, 200, await jobs.save(directory, id, body.filename ?? null));
+          return;
+        }
+        if (request.method === 'POST' && match[2] === 'picture') {
+          json(response, 200, await jobs.savePicture(directory, id, body));
           return;
         }
         if (request.method === 'POST' && match[2] === 'progress') {

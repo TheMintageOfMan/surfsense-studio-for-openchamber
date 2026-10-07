@@ -13,6 +13,7 @@
     "probe": "node scripts/probe.mjs"
   },
   "dependencies": {
+    "@antv/infographic": "0.2.20",
     "@openchamber/sdk": "2.1.1",
     "docx": "9.9.0",
     "dompurify": "3.4.16",

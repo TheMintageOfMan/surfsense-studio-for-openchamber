@@ -4,6 +4,7 @@
 // Modified: single JSON-encoded source, injection guard, disclosed caps, a new styled
 // template with a script-free Content-Security-Policy and a provenance footer.
 import { asList, asText, parseJsonObject, plural, structuredPrompt, StudioError } from './core.mjs';
+import { FONT_STACK } from './font.mjs';
 
 const SECTIONS = 10;
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
@@ -12,7 +13,7 @@ export const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (characte
 const CSS = `:root { color-scheme: light dark; --text: #1f2328; --muted: #59636e; --line: #d1d9e0; --bg: #ffffff; }
 @media (prefers-color-scheme: dark) { :root { --text: #e6edf3; --muted: #9198a1; --line: #3d444d; --bg: #0d1117; } }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.65 system-ui, -apple-system, "Segoe UI", sans-serif; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.65 ${FONT_STACK}; }
 main { max-width: 46rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
 h1 { font-size: 2.1rem; line-height: 1.2; margin: 0 0 1.5rem; letter-spacing: -0.02em; }
 h2 { font-size: 1.3rem; line-height: 1.3; margin: 1.6rem 0 0.6rem; }
@@ -26,7 +27,8 @@ export function webpageMeta(record) {
 }
 
 // Every model value is escaped into a fixed template; the page can carry no script.
-export function buildWebPage(page, meta) {
+// fontCss carries Studio's font inline (@font-face with data: URLs) so the page looks the same anywhere.
+export function buildWebPage(page, meta, fontCss = '') {
   const sections = page.sections.map((section) => [
     '<section>',
     ...(section.heading ? [`<h2>${escapeHtml(section.heading)}</h2>`] : []),
@@ -38,10 +40,11 @@ export function buildWebPage(page, meta) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; font-src data:">
 <meta name="generator" content="SurfSense Studio for OpenChamber v2">
 <title>${escapeHtml(page.title)}</title>
 <style>
+${fontCss}
 ${CSS}
 </style>
 </head>
@@ -101,7 +104,7 @@ export const webpage = Object.freeze({
     }
     return { title, markdown: lines.join('\n') + '\n', artifact: { title, sections }, notes };
   },
-  exportContent(record) {
-    return buildWebPage(record.artifact, webpageMeta(record));
+  exportContent(record, { fontCss = '' } = {}) {
+    return buildWebPage(record.artifact, webpageMeta(record), fontCss);
   },
 });
