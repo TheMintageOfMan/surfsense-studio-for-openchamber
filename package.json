@@ -1,0 +1,21 @@
+{
+  "name": "surfsense-studio-for-openchamber",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SurfSense Studio for OpenChamber v2 - Summary development build",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test",
+    "probe": "node scripts/probe.mjs"
+  },
+  "dependencies": {
+    "@openchamber/sdk": "2.1.1",
+    "dompurify": "3.4.16",
+    "marked": "18.1.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}
