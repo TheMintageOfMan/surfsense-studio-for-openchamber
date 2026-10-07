@@ -51,23 +51,19 @@ function slidesPreview(artifact) {
 
 function sheetsPreview(artifact) {
   return artifact.tables.flatMap((sheet) => {
-    const section = el('section', 'sheet');
+    const section = el('section', 'sheet-table');
     section.append(el('h3', null, `Sheet: ${sheet.name}`));
     if (sheet.description) section.append(el('p', 'muted small', sheet.description));
-    section.append(el('p', 'muted small', `${sheet.rows.length} rows x ${sheet.columns.length} columns, all shown. Empty cells are values the source does not give.`), table(sheet));
+    section.append(table(sheet));
     return [section];
   });
 }
 
 const PREVIEWS = { docx: documentPreview, pdf: documentPreview, pptx: slidesPreview, xlsx: sheetsPreview };
-const UNITS = { pdf: 'pages', pptx: 'slides', xlsx: 'sheets including Notes' };
+const APPS = { docx: 'Word', pdf: 'a PDF reader', pptx: 'PowerPoint', xlsx: 'Excel' };
 
 export function renderDocument(container, record) {
-  const { file } = record;
-  const facts = file
-    ? `Stored file ${file.name}: ${file.bytes.toLocaleString()} bytes, MD5 ${file.md5}${file.pages ? `, ${file.pages} ${UNITS[record.format]}` : ''}. Export copies these exact bytes.`
-    : 'No stored file is recorded for this artifact.';
-  container.append(el('p', 'muted small', facts), el('p', 'muted small', 'Preview of the content the file was built from. Layout in the exported file may differ.'),
+  container.append(el('p', 'muted small', `This is a preview. Tap Save to get the real file to open in ${APPS[record.format]}.`),
     ...PREVIEWS[record.format](record.artifact));
   return { dispose() {} };
 }

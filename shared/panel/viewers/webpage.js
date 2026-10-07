@@ -10,6 +10,6 @@ export function renderWebpage(container, record) {
   frame.title = `Web page preview: ${record.artifact.title}`;
   // The preview is the exact document Export writes.
   frame.srcdoc = buildWebPage(record.artifact, webpageMeta(record));
-  container.append(el('p', 'muted small', 'Isolated preview: scripts, forms, and navigation are disabled.'), frame);
+  container.append(el('p', 'muted small', 'This is a preview. Tap Save to get the web page file.'), frame);
   return { dispose() {} };
 }
