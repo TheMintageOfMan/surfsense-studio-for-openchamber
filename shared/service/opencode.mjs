@@ -1,4 +1,4 @@
-import { modelKey, StudioError } from '../common/summary.mjs';
+import { modelKey, StudioError } from '../common/core.mjs';
 import { projectDirectory } from './storage.mjs';
 import os from 'node:os';
 import path from 'node:path';

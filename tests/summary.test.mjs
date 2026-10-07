@@ -5,8 +5,10 @@ import path from 'node:path';
 import { randomUUID, createHash } from 'node:crypto';
 import { once } from 'node:events';
 import os from 'node:os';
-import { LIMITS, modelKey, summaryPrompt, validateSummary } from '../shared/common/summary.mjs';
-import { SummaryJobs } from '../shared/service/jobs.mjs';
+import { LIMITS, modelKey } from '../shared/common/core.mjs';
+import { validateJob } from '../shared/common/formats.mjs';
+import { summary } from '../shared/common/summary.mjs';
+import { StudioJobs } from '../shared/service/jobs.mjs';
 import { createStudioServer } from '../shared/service/server.mjs';
 import { OpenCodeGateway } from '../shared/service/opencode.mjs';
 
@@ -14,7 +16,7 @@ const source = await fs.readFile(new URL('../SPEC.md', import.meta.url), 'utf8')
 const transportResult = await fs.readFile(new URL('../README.md', import.meta.url), 'utf8');
 // These transports exercise persistence and failure handling, not LLM quality.
 const model = { providerID: 'unit-test', id: 'controlled-transport' };
-const request = () => ({ id: randomUUID(), source: { path: 'SPEC.md', content: source }, instructions: '', model });
+const request = () => ({ id: randomUUID(), format: 'summary', source: { path: 'SPEC.md', content: source }, instructions: '', model });
 async function directory() {
   const parent = path.resolve('temp');
   await fs.mkdir(parent, { recursive: true });
@@ -31,24 +33,24 @@ async function completed(jobs, root, id) {
 
 test('source validation rejects traversal and oversized input instead of truncating it', () => {
   const input = request();
-  assert.equal(validateSummary(input).source.content, source);
+  assert.equal(validateJob(input).source.content, source);
   for (const unsafe of ['../SPEC.md', '/SPEC.md', 'C:/SPEC.md', 'folder\\SPEC.md', 'SPEC.pdf']) {
-    assert.throws(() => validateSummary({ ...input, source: { path: unsafe, content: source } }), { code: 'BAD_SOURCE' });
+    assert.throws(() => validateJob({ ...input, source: { path: unsafe, content: source } }), { code: 'BAD_SOURCE' });
   }
-  assert.throws(() => validateSummary({ ...input, source: { path: 'SPEC.md', content: source.repeat(Math.ceil(LIMITS.source / source.length) + 1) } }), { code: 'SOURCE_TOO_LARGE' });
-  assert.ok(summaryPrompt(input).includes(JSON.stringify(source)));
+  assert.throws(() => validateJob({ ...input, source: { path: 'SPEC.md', content: source.repeat(Math.ceil(LIMITS.source / source.length) + 1) } }), { code: 'SOURCE_TOO_LARGE' });
+  assert.ok(summary.prompt(input).includes(JSON.stringify(source)));
   assert.notEqual(modelKey(model), modelKey({ ...model, variant: 'high' }));
 });
 
 test('completed summaries survive a new store instance and exports never overwrite files', async () => {
   const root = await directory();
-  const jobs = new SummaryJobs();
+  const jobs = new StudioJobs();
   const input = request();
   await jobs.start(root, input, async () => ({ text: transportResult }));
   const record = await completed(jobs, root, input.id);
   assert.equal(record.status, 'completed');
   assert.equal(record.source.md5, createHash('md5').update(source).digest('hex'));
-  const restored = await new SummaryJobs().get(root, input.id);
+  const restored = await new StudioJobs().get(root, input.id);
   assert.equal(restored.markdown, transportResult.trim() + '\n');
   await jobs.save(root, input.id, 'summary.md');
   await assert.rejects(jobs.save(root, input.id, 'summary.md'), { code: 'FILE_EXISTS' });
@@ -58,7 +60,7 @@ test('completed summaries survive a new store instance and exports never overwri
 
 test('duplicate request IDs do not repeat a billable generation', async () => {
   const root = await directory();
-  const jobs = new SummaryJobs();
+  const jobs = new StudioJobs();
   const input = request();
   let calls = 0;
   const generate = async () => { calls += 1; return { text: transportResult }; };
@@ -71,7 +73,7 @@ test('duplicate request IDs do not repeat a billable generation', async () => {
 
 test('cancellation aborts the transport and leaves a visible cancelled record', async () => {
   const root = await directory();
-  const jobs = new SummaryJobs();
+  const jobs = new StudioJobs();
   const input = request();
   let started;
   const ready = new Promise((resolve) => { started = resolve; });
@@ -89,7 +91,7 @@ test('cancellation aborts the transport and leaves a visible cancelled record', 
 
 test('provider failures cannot expose raw error bodies or credentials', async () => {
   const root = await directory();
-  const jobs = new SummaryJobs();
+  const jobs = new StudioJobs();
   const input = request();
   await jobs.start(root, input, async () => { throw new Error('unit-test-private-error-marker'); });
   const record = await completed(jobs, root, input.id);
@@ -145,7 +147,7 @@ test('stateless generation advertises the base catalog and preserves the selecte
   const connection = await gateway.prepare({ directory: root, sessionId, hostOrigin: 'http://127.0.0.1:1' });
   assert.equal(catalogScope, path.join(process.env.XDG_CONFIG_HOME ?? path.join(os.homedir(), '.config'), 'opencode'));
   assert.equal(connection.selectedModelKey, modelKey(model));
-  const prompt = summaryPrompt(request());
+  const prompt = summary.prompt(validateJob(request()));
   assert.equal((await connection.generate(prompt, model, new AbortController().signal)).text, transportResult);
   assert.deepEqual(dispatched, { prompt, model });
 });

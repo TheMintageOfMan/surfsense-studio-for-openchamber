@@ -4,7 +4,7 @@ body { margin: 0; background: var(--oc-background, transparent); font-size: 13px
 main { max-width: 860px; margin: auto; padding: 16px; }
 header { margin-bottom: 18px; }
 h1 { font-size: 19px; margin: 0; letter-spacing: -0.02em; }
-h2 { font-size: 14px; margin: 0 0 10px; }
+h2 { font-size: 14px; margin: 0 0 10px; overflow-wrap: anywhere; }
 p { margin: 6px 0 10px; }
 section { border-top: 1px solid var(--oc-border, #8884); padding: 16px 0; }
 section > div { margin-bottom: 10px; }
@@ -12,9 +12,15 @@ section > div { margin-bottom: 10px; }
 .small { font-size: 11px; }
 .path { overflow-wrap: anywhere; font-family: var(--oc-font-mono, monospace); font-size: 11px; }
 .build-label { display: inline-block; margin-top: 8px; padding: 3px 7px; border: 1px solid var(--oc-border, #8884); border-radius: 5px; font-size: 11px; }
-.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 [data-error="true"] { color: var(--error-text, #bf4545); }
 #result-meta, #save-status { overflow-wrap: anywhere; }
+.formats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.format-tile { min-height: 40px; padding: 6px 4px; border: 1px solid var(--oc-border, #8884); border-radius: 7px; background: transparent; color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
+.format-tile[aria-pressed="true"] { border-color: var(--oc-primary, #608cd9); background: color-mix(in srgb, var(--oc-primary, #608cd9) 16%, transparent); font-weight: 600; }
+.format-tile[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+.format-tile:focus-visible, .quiz-option:focus-visible { outline: 2px solid var(--oc-primary, #608cd9); outline-offset: 1px; }
+.notes { margin: 0 0 12px; padding-left: 18px; font-size: 12px; }
 .markdown { overflow-wrap: anywhere; padding: 4px 0 14px; }
 .markdown h1 { font-size: 20px; margin: 8px 0 12px; }
 .markdown h2 { font-size: 16px; margin: 20px 0 8px; }
@@ -24,4 +30,22 @@ section > div { margin-bottom: 10px; }
 .markdown a { color: var(--primary-text, #608cd9); }
 .markdown table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
 .markdown th, .markdown td { border: 1px solid var(--oc-border, #8884); padding: 5px 8px; text-align: left; }
+.card { border: 1px solid var(--oc-border, #8884); border-radius: 8px; padding: 14px; margin: 8px 0 12px; min-height: 120px; overflow-wrap: anywhere; }
+.card-front { font-weight: 600; font-size: 14px; margin: 0 0 10px; }
+.card-back { margin: 0; padding-top: 10px; border-top: 1px dashed var(--oc-border, #8884); }
+.quiz { padding-left: 20px; margin: 8px 0; }
+.quiz-item { margin-bottom: 16px; overflow-wrap: anywhere; }
+.quiz-question { font-weight: 600; margin-bottom: 6px; }
+.quiz-options { display: grid; gap: 5px; }
+.quiz-option { text-align: left; padding: 7px 9px; border: 1px solid var(--oc-border, #8884); border-radius: 6px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.quiz-option:disabled { cursor: default; }
+.quiz-option[data-result="correct"] { border-color: #2f9e5a; background: rgba(47, 158, 90, .14); }
+.quiz-option[data-result="incorrect"] { border-color: #cf4b4b; background: rgba(207, 75, 75, .14); }
+.quiz-feedback { font-size: 12px; margin: 6px 0 0; }
+.quiz-score { font-weight: 600; }
+/* Markmap draws dark text, so the map keeps a light canvas in both themes. */
+.mindmap { background: #fff; color: #1f2328; border: 1px solid var(--oc-border, #8884); border-radius: 8px; overflow: hidden; }
+.mindmap-svg { display: block; width: 100%; height: 440px; }
+.outline pre { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--oc-font-mono, monospace); font-size: 11px; }
+.webpage-frame { display: block; width: 100%; height: 520px; border: 1px solid var(--oc-border, #8884); border-radius: 8px; background: #fff; }
 [hidden] { display: none !important; }

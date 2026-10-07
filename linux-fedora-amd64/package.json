@@ -1,9 +1,9 @@
 {
   "name": "surfsense-studio-for-openchamber",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "SurfSense Studio for OpenChamber v2 - Summary development build",
+  "description": "SurfSense Studio for OpenChamber v2 - text formats development build",
   "studioPlatform": {
     "os": "linux",
     "arch": "x64"

@@ -1,9 +1,12 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { requireJobId, StudioError } from '../common/summary.mjs';
+import { requireJobId, StudioError } from '../common/core.mjs';
+import { formatFor, IMPLEMENTED } from '../common/formats.mjs';
 
 const pendingWrites = new Map();
+// Structured artifacts can hold most of a 100,000-character reply twice (data and Markdown).
+const RECORD_BYTES = 600_000;
 
 export async function projectDirectory(directory) {
   if (typeof directory !== 'string' || !path.isAbsolute(directory) || directory.includes('\0')) {
@@ -18,9 +21,9 @@ export async function projectDirectory(directory) {
   }
 }
 
-async function folder(directory, create = false) {
+async function folder(directory, name, create = false) {
   let current = await projectDirectory(directory);
-  for (const segment of ['.studio', 'summaries']) {
+  for (const segment of ['.studio', name]) {
     current = path.join(current, segment);
     let info = await fs.lstat(current).catch((error) => {
       if (error.code === 'ENOENT') return null;
@@ -38,7 +41,7 @@ async function folder(directory, create = false) {
 }
 
 export async function writeRecord(directory, record, initial = false) {
-  const root = await folder(directory, true);
+  const root = await folder(directory, formatFor(record.format).folder, true);
   const target = path.join(root, `${requireJobId(record.id)}.json`);
   const content = JSON.stringify(record, null, 2) + '\n';
   // Cancellation and transport completion can arrive together. Windows does not
@@ -56,39 +59,59 @@ export async function writeRecord(directory, record, initial = false) {
   finally { if (pendingWrites.get(target) === next) pendingWrites.delete(target); }
 }
 
-export async function readRecord(directory, id) {
-  const root = await folder(directory);
-  if (!root) throw new StudioError('NOT_FOUND', 'Summary not found in this project.', 404);
+async function readFrom(root, id, format) {
+  const file = path.join(root, `${id}.json`);
+  let info;
   try {
-    const file = path.join(root, `${requireJobId(id)}.json`);
-    const info = await fs.lstat(file);
-    if (!info.isFile() || info.isSymbolicLink() || info.size > 250_000) throw new Error('Invalid record');
-    const record = JSON.parse(await fs.readFile(file, 'utf8'));
-    if (record.id !== id || record.version !== 1) throw new Error('Invalid record');
-    return record;
+    info = await fs.lstat(file);
   } catch (error) {
-    if (error instanceof StudioError) throw error;
-    if (error.code === 'ENOENT') throw new StudioError('NOT_FOUND', 'Summary not found in this project.', 404);
-    throw new StudioError('BAD_HISTORY', 'A saved summary record could not be read. No files were changed.');
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  }
+  try {
+    if (!info.isFile() || info.isSymbolicLink() || info.size > RECORD_BYTES) throw new Error('Invalid record');
+    const record = JSON.parse(await fs.readFile(file, 'utf8'));
+    if (record.id !== id || record.version !== 1 || record.format !== format) throw new Error('Invalid record');
+    return record;
+  } catch {
+    throw new StudioError('BAD_HISTORY', 'A saved Studio record could not be read. No files were changed.');
   }
 }
 
-export async function listRecords(directory) {
-  const root = await folder(directory);
-  if (!root) return [];
-  const names = (await fs.readdir(root)).filter((name) => name.endsWith('.json'));
-  return Promise.all(names.map((name) => readRecord(directory, name.slice(0, -5))));
+export async function readRecord(directory, id) {
+  requireJobId(id);
+  for (const format of IMPLEMENTED) {
+    const root = await folder(directory, format.folder);
+    const record = root ? await readFrom(root, id, format.key) : null;
+    if (record) return record;
+  }
+  throw new StudioError('NOT_FOUND', 'Studio record not found in this project.', 404);
 }
 
-export async function exportMarkdown(directory, record, filename) {
-  if (typeof filename !== 'string' || filename.length > 120 || !/\.md$/i.test(filename)
+export async function listRecords(directory) {
+  const records = [];
+  for (const format of IMPLEMENTED) {
+    const root = await folder(directory, format.folder);
+    if (!root) continue;
+    for (const name of await fs.readdir(root)) {
+      const id = name.endsWith('.json') ? name.slice(0, -5) : '';
+      try { requireJobId(id); } catch { continue; }
+      const record = await readFrom(root, id, format.key);
+      if (record) records.push(record);
+    }
+  }
+  return records;
+}
+
+export async function exportFile(directory, content, filename, extension) {
+  if (typeof filename !== 'string' || filename.length > 120 || !filename.toLowerCase().endsWith(`.${extension}`)
       || /[\\/:*?"<>|\x00-\x1f]/.test(filename) || filename.startsWith('.')) {
-    throw new StudioError('BAD_FILENAME', 'Use a new Markdown filename without directory separators.');
+    throw new StudioError('BAD_FILENAME', `Use a new .${extension} filename without directory separators.`);
   }
   const root = await projectDirectory(directory);
   try {
     // Exclusive creation protects user files even if another process saves first.
-    await fs.writeFile(path.join(root, filename), record.markdown, { flag: 'wx' });
+    await fs.writeFile(path.join(root, filename), content, { flag: 'wx' });
   } catch (error) {
     if (error.code === 'EEXIST') throw new StudioError('FILE_EXISTS', 'That file already exists. Choose a different filename.', 409);
     throw error;

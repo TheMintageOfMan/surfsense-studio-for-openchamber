@@ -4,7 +4,7 @@ An independent, optional OpenChamber extension bringing SurfSense-style Studio c
 
 Read [SPEC.md](SPEC.md) for the high-level specification, platform packaging, and optional Kokoro download design.
 
-**Status:** Summary-only development build (1 of 12 formats implemented). Eight focused tests pass. On Windows, the installed extension, host-owned runtime, real model generation, history reopening after reload, and Markdown export are verified. Fedora is build-only and has not been runtime-tested.
+**Status:** Development build with 5 of 12 formats: Summary, Flashcards, Quiz, Mind map, and Web page. Fifteen focused tests pass. On Windows, the installed extension generated each format live from the complete `SPEC.md`; previews, study progress, history reopening, and exports were checked. Fedora is build-only and has not been runtime-tested.
 
 ## Install the development build
 
@@ -15,17 +15,30 @@ In OpenChamber **Settings > Extensions**, add the matching folder and approve pr
 
 The folders include built scripts and dependency licenses. Users do not install Node, Python, or a backend. Keep a folder installation in place; OpenChamber runs it from that folder. Do not install the repository root as an extension.
 
-Open a project session, open **SurfSense Studio**, load one `.md` or `.txt` source, review the model, and generate. History is stored in `.studio/summaries/` inside that project. **Export Markdown** creates a new file in the project root and refuses to overwrite an existing file.
+Open a project session, open **SurfSense Studio**, choose a format, load one `.md` or `.txt` source, review the model, and generate. History is stored per format under `.studio/` inside that project. Export creates a new `.md` file (`.html` for Web page) in the project root and refuses to overwrite an existing file.
+
+| Format | Result | Limit |
+|---|---|---|
+| Summary | Structured Markdown brief | About 500 words requested |
+| Flashcards | One card at a time with reveal and mark-known; progress is saved | 20 cards |
+| Quiz | Four-option questions with scoring and explanations; progress is saved | 10 questions |
+| Mind map | Zoomable, collapsible Markmap plus a text outline | 10 main branches, 6 levels |
+| Web page | Self-contained HTML in an isolated, script-free preview; the export matches the preview | 10 sections |
+
+The other seven formats appear as disabled tiles that state what they still need. They have no implementation yet.
 
 ### Current boundaries
 
-- Built against OpenChamber 2.1.1 and OpenCode 2.0.22. Only Summary is implemented; there are no placeholder implementations of the other formats.
-- The first-pass model adapter uses the current guest frame's **loopback OpenChamber proxy** and verifies the active session/directory. It reads no credentials and never starts or discovers an unrelated OpenCode server.
+- Built against OpenChamber 2.1.1 and OpenCode 2.0.22.
+- The model adapter uses the current guest frame's **loopback OpenChamber proxy** and verifies the active session/directory. It reads no credentials and never starts or discovers an unrelated OpenCode server.
 - Password-protected, remote, and relay hosts are not supported by this adapter. They need an authenticated extension broker; authentication is never disabled or bypassed.
-- Stateless generation uses **OpenCode's base configuration**, not project-specific model overrides. The selected model and active-session variant are shown; there is no Small Model fallback.
+- Stateless generation uses **OpenCode's base configuration**, not project-specific model overrides. Base models and the active session's model and variant are listed; there is no Small Model fallback.
 - Sources are limited to 32,000 characters and requests to the host bridge's size limit. Oversized inputs are rejected, not truncated. There is no automatic retry of a failed model call.
+- Structured replies are validated. Malformed JSON fails without saving; incomplete or excess items are omitted, and every omission is listed with the artifact.
+- A live run with Claude Opus 5.5 at variant `max` returned no text through OpenCode's stateless route for all four structured formats. Studio reports this as an empty result. The same formats succeeded with GPT-6 Astra Ultrafast.
+- Large mind maps are small in the side panel; zoom in, or open Studio as a full-screen extension page.
 - Cancellation aborts Studio's request; a provider may still bill work already started. Closing the panel does not stop service-owned jobs.
-- No Python/document worker, image adapter, or Kokoro download is included in this pass.
+- No Python/document worker, image adapter, or Kokoro download is included yet.
 
 ## Develop
 
@@ -39,7 +52,9 @@ npm run build
 
 Run `npm run probe` from an OpenChamber agent shell for a read-only connection/model check. It does not generate text or print credentials. Unit tests use controlled transports; passing them does not establish live model or cross-platform compatibility.
 
-The Windows live check summarized the complete `SPEC.md` with the model and variant selected in OpenChamber. Source identity and exported Markdown were checked with MD5. Cancellation and no-overwrite behavior were checked with controlled transports; no additional billable call was made just to test cancellation.
+Live Windows checks generated every implemented format from the complete `SPEC.md` through the installed extension. Source identity and exports were checked with MD5. Cancellation and no-overwrite behavior were checked with controlled transports; no billable call was made just to test cancellation.
+
+Flashcards, Quiz, Mind map, and Web page adapt SurfSense's Apache-2.0 prompts and reply shapes; each adapted file names its source, and each package's `THIRD-PARTY-LICENSES.txt` carries the notice.
 
 https://github.com/MODSetter/SurfSense
 https://github.com/openchamber/openchamber

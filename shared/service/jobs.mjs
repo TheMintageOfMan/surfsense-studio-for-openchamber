@@ -1,16 +1,20 @@
 import { createHash } from 'node:crypto';
-import { LIMITS, StudioError, summaryPrompt, validateSummary } from '../common/summary.mjs';
-import { exportMarkdown, listRecords, readRecord, writeRecord } from './storage.mjs';
+import { LIMITS, StudioError } from '../common/core.mjs';
+import { formatFor, validateJob } from '../common/formats.mjs';
+import { exportFile, listRecords, readRecord, writeRecord } from './storage.mjs';
 
 const unfinished = (record) => ['queued', 'running'].includes(record.status);
 const sameDirectory = (a, b) => process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b;
 const digest = (text) => createHash('md5').update(text).digest('hex');
+const clearOutput = (record) => Object.assign(record, { title: null, markdown: null, artifact: null, notes: [] });
 
-export class SummaryJobs {
+export class StudioJobs {
   #active = new Map();
+  #locks = new Map();
 
   async start(directory, raw, generate) {
-    const input = validateSummary(raw);
+    const input = validateJob(raw);
+    const format = formatFor(input.format);
     const fingerprint = digest(JSON.stringify(input));
     try {
       const previous = await this.get(directory, input.id);
@@ -20,13 +24,14 @@ export class SummaryJobs {
       if (error.code !== 'NOT_FOUND') throw error;
     }
     if ([...this.#active.values()].some((job) => sameDirectory(job.directory, directory))) {
-      throw new StudioError('BUSY', 'Wait for or cancel this project\'s current summary.', 409);
+      throw new StudioError('BUSY', 'Wait for or cancel this project\'s current Studio job.', 409);
     }
     const record = {
-      version: 1, id: input.id, format: 'summary', status: 'queued',
+      version: 1, id: input.id, format: format.key, status: 'queued',
       createdAt: new Date().toISOString(), ownerPid: process.pid, fingerprint,
       source: { path: input.source.path, characters: input.source.content.length, md5: digest(input.source.content) },
-      instructions: input.instructions, model: input.model, markdown: null, savedPath: null, error: null,
+      instructions: input.instructions, model: input.model,
+      title: null, markdown: null, artifact: null, notes: [], progress: null, savedPath: null, error: null,
     };
     const controller = new AbortController();
     const job = { directory, record, controller };
@@ -37,28 +42,36 @@ export class SummaryJobs {
       this.#active.delete(record.id);
       throw error;
     }
-    job.finished = this.#run(job, input, generate);
+    job.finished = this.#run(job, input, format, generate);
     return this.public(record);
   }
 
-  async #run(job, input, generate) {
+  async #run(job, input, format, generate) {
     const { directory, record, controller } = job;
     const timeout = AbortSignal.timeout(300_000);
     try {
       if (controller.signal.aborted) return;
       record.status = 'running';
       await writeRecord(directory, record);
-      const { text } = await generate(summaryPrompt(input), input.model, AbortSignal.any([controller.signal, timeout]));
+      const { text } = await generate(format.prompt(input), input.model, AbortSignal.any([controller.signal, timeout]));
       if (controller.signal.aborted) return;
-      if (typeof text !== 'string' || !text.trim()) throw new StudioError('EMPTY_RESULT', 'The model returned no summary.');
-      if (text.length > LIMITS.output || JSON.stringify({ text }).length > 180_000) {
+      if (typeof text !== 'string' || !text.trim()) {
+        // Seen live with a reasoning-heavy variant through OpenCode's stateless route.
+        throw new StudioError('EMPTY_RESULT', 'The model returned no text, so nothing was saved. If it uses a reasoning variant, try the model without a variant or choose another model, then regenerate explicitly.');
+      }
+      if (text.length > LIMITS.output) {
         throw new StudioError('OUTPUT_TOO_LARGE', 'The model response exceeds this build\'s output limit. It was not truncated.');
       }
-      record.markdown = text.trim() + '\n';
+      const built = format.build(text, input);
+      Object.assign(record, { title: built.title, markdown: built.markdown, artifact: built.artifact ?? null, notes: built.notes ?? [] });
+      if (JSON.stringify(this.public(record)).length > LIMITS.response) {
+        throw new StudioError('OUTPUT_TOO_LARGE', 'This artifact is too large for the host bridge. It was not truncated.');
+      }
       record.status = 'completed';
       record.completedAt = new Date().toISOString();
     } catch (error) {
       if (controller.signal.aborted) return;
+      clearOutput(record);
       record.status = 'failed';
       // Provider errors can contain request bodies or credentials. Only our own messages leave the service.
       record.error = error instanceof StudioError ? { code: error.code, message: error.message } : {
@@ -70,8 +83,9 @@ export class SummaryJobs {
     } finally {
       try { await writeRecord(directory, record); }
       catch {
+        clearOutput(record);
         record.status = 'failed';
-        record.error = { code: 'STORAGE_FAILED', message: 'Studio could not save this summary. Check that the project is writable.' };
+        record.error = { code: 'STORAGE_FAILED', message: 'Studio could not save this artifact. Check that the project is writable.' };
         console.error('Studio could not persist a job update. Existing records were not deleted.');
       }
       this.#active.delete(record.id);
@@ -93,16 +107,18 @@ export class SummaryJobs {
       }
       if (!ownerAlive) {
         record.status = 'interrupted';
-        record.error = { code: 'INTERRUPTED', message: 'Studio stopped before this summary completed. Regenerate explicitly.' };
+        record.error = { code: 'INTERRUPTED', message: 'Studio stopped before this job completed. Regenerate explicitly.' };
         await writeRecord(directory, record);
       }
     }
     return record;
   }
 
-  public(record, includeMarkdown = true) {
+  public(record, detail = true) {
     const { fingerprint, ownerPid, instructions, ...visible } = record;
-    if (!includeMarkdown) delete visible.markdown;
+    if (!detail) {
+      for (const field of ['markdown', 'artifact', 'notes', 'progress']) delete visible[field];
+    }
     return { ...visible, canCancel: this.#active.has(record.id) && unfinished(record) };
   }
 
@@ -124,19 +140,42 @@ export class SummaryJobs {
     return this.public(job.record);
   }
 
-  async save(directory, id, filename) {
-    const record = await this.get(directory, id);
-    if (record.status !== 'completed') throw new StudioError('NOT_READY', 'Only a completed summary can be exported.', 409);
-    const savedPath = await exportMarkdown(directory, record, filename);
-    record.savedPath = savedPath;
-    await writeRecord(directory, record);
-    return { savedPath };
+  // Serializes read-modify-write updates of one saved record (export and progress).
+  async #update(directory, id, change) {
+    const previous = this.#locks.get(id) ?? Promise.resolve();
+    const run = previous.catch(() => {}).then(async () => {
+      const record = await this.get(directory, id);
+      if (record.status !== 'completed') throw new StudioError('NOT_READY', 'Only a completed artifact can be changed or exported.', 409);
+      const result = await change(record, formatFor(record.format));
+      await writeRecord(directory, record);
+      return result;
+    });
+    this.#locks.set(id, run);
+    try { return await run; }
+    finally { if (this.#locks.get(id) === run) this.#locks.delete(id); }
+  }
+
+  save(directory, id, filename) {
+    return this.#update(directory, id, async (record, format) => {
+      const content = format.exportContent ? format.exportContent(record) : record.markdown;
+      record.savedPath = await exportFile(directory, content, filename, format.extension);
+      return { savedPath: record.savedPath };
+    });
+  }
+
+  saveProgress(directory, id, value) {
+    return this.#update(directory, id, async (record, format) => {
+      if (!format.validateProgress) throw new StudioError('NO_PROGRESS', `${format.label} has no study progress.`, 409);
+      record.progress = format.validateProgress(record.artifact, value);
+      record.progressUpdatedAt = new Date().toISOString();
+      return { progress: record.progress };
+    });
   }
 
   async stop() {
     await Promise.all([...this.#active.values()].map(async (job) => {
       job.record.status = 'interrupted';
-      job.record.error = { code: 'INTERRUPTED', message: 'Studio stopped before this summary completed.' };
+      job.record.error = { code: 'INTERRUPTED', message: 'Studio stopped before this job completed.' };
       job.controller.abort();
       await writeRecord(job.directory, job.record);
     }));

@@ -1,27 +1,27 @@
 import { connectHost } from '@openchamber/sdk';
 import { applyHostReady, mountButton, mountSelect, mountTextField } from '@openchamber/sdk/ui';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
-import { LIMITS, validateSummary, validSourcePath } from '../common/summary.mjs';
+import { LIMITS, validSourcePath } from '../common/core.mjs';
+import { FORMATS, IMPLEMENTED, formatFor, labelFor, validateJob } from '../common/formats.mjs';
+import { renderViewer } from './viewers/index.js';
 
 const host = connectHost();
 const element = (id) => document.getElementById(id);
 const state = {
-  context: null, epoch: 0, ready: false, models: [], model: null,
+  context: null, epoch: 0, ready: false, models: [], model: null, format: 'summary',
   path: '', source: null, instructions: '', active: null, record: null,
-  rows: [], next: null, filename: '', timer: null, submitting: false,
+  rows: [], next: null, filename: '', timer: null, submitting: false, viewer: null,
 };
+const progressQueue = { pending: null, running: false };
 let mounted = false;
 const controls = {};
 
-function status(message, error = false) {
-  element('status').textContent = message;
+function status(text, error = false) {
+  element('status').textContent = text;
   element('status').dataset.error = String(error);
 }
 
-function message(error) {
-  return error?.message || 'Studio could not complete this operation.';
-}
+const message = (error) => error?.message || 'Studio could not complete this operation.';
+const modelLabel = (model) => `${model.providerID}/${model.id}${model.variant ? `#${model.variant}` : ''}`;
 
 function contextQuery(context = state.context) {
   return new URLSearchParams({
@@ -44,9 +44,43 @@ async function rpc(method, path, body) {
   return data;
 }
 
+function mountFormats() {
+  element('formats').replaceChildren(...FORMATS.map((format) => {
+    const tile = document.createElement('button');
+    tile.type = 'button';
+    tile.className = 'format-tile';
+    tile.textContent = format.label;
+    tile.dataset.format = format.key;
+    if (!format.implemented) {
+      // aria-disabled keeps the tile focusable so its reason stays discoverable.
+      tile.setAttribute('aria-disabled', 'true');
+      tile.title = format.reason;
+    }
+    tile.addEventListener('click', () => {
+      if (!format.implemented) {
+        element('format-hint').textContent = `${format.label}: ${format.reason}`;
+        return;
+      }
+      state.format = format.key;
+      element('format-hint').textContent = '';
+      paintFormats();
+      updateControls();
+    });
+    return tile;
+  }));
+  paintFormats();
+}
+
+function paintFormats() {
+  for (const tile of element('formats').children) tile.setAttribute('aria-pressed', String(tile.dataset.format === state.format));
+}
+
 function updateControls() {
   const busy = state.submitting || Boolean(state.active);
-  controls.generate.update({ disabled: !state.ready || !state.model || !state.source || busy, loading: state.submitting });
+  controls.generate.update({
+    label: `Generate ${formatFor(state.format).noun}`,
+    disabled: !state.ready || !state.model || !state.source || busy, loading: state.submitting,
+  });
   controls.cancel.update({ disabled: !state.active?.canCancel });
   controls.load.update({ disabled: !state.context?.directory || !validSourcePath(state.path) || busy });
   controls.path.update({ disabled: busy });
@@ -111,7 +145,7 @@ async function loadSource() {
     if (content.length > LIMITS.source) throw new Error(`Source has ${content.length.toLocaleString()} characters; this build accepts ${LIMITS.source.toLocaleString()}. Nothing was truncated.`);
     state.source = { path, content };
     element('coverage').textContent = `1/1 source loaded in full: ${content.length.toLocaleString()} characters.`;
-    status('Source ready. Review the selected model, then generate.');
+    status('Source ready. Choose a format, review the model, then generate.');
   } catch (error) {
     if (epoch !== state.epoch) return;
     element('coverage').textContent = message(error);
@@ -120,22 +154,49 @@ async function loadSource() {
   updateControls();
 }
 
+// Progress is full state, so only the newest pending snapshot needs sending.
+function queueProgress(recordId, value) {
+  progressQueue.pending = { recordId, value, context: { ...state.context }, epoch: state.epoch };
+  if (!progressQueue.running) void flushProgress();
+}
+
+async function flushProgress() {
+  progressQueue.running = true;
+  while (progressQueue.pending) {
+    const next = progressQueue.pending;
+    progressQueue.pending = null;
+    try {
+      await rpc('POST', `/jobs/${next.recordId}/progress`, { context: next.context, progress: next.value });
+    } catch (error) {
+      if (next.epoch === state.epoch) status(`Progress was not saved: ${message(error)}`, true);
+    }
+  }
+  progressQueue.running = false;
+}
+
 function showRecord(record) {
+  state.viewer?.dispose();
+  state.viewer = null;
   state.record = record;
   const complete = record.status === 'completed';
   element('result-section').hidden = !complete;
   if (complete) {
-    // Model output remains untrusted even when it came from an authenticated provider.
-    element('preview').innerHTML = DOMPurify.sanitize(marked.parse(record.markdown), {
-      FORBID_TAGS: ['img', 'svg', 'math', 'iframe', 'style', 'form', 'input', 'button'], FORBID_ATTR: ['style'],
+    const format = formatFor(record.format);
+    element('result-heading').textContent = `${format.label}: ${record.title ?? format.label}`;
+    element('result-meta').textContent = `${record.source.path} | ${modelLabel(record.model)}`;
+    const notes = record.notes ?? [];
+    element('notes').replaceChildren(...notes.map((note) => Object.assign(document.createElement('li'), { textContent: note })));
+    element('notes').hidden = !notes.length;
+    state.viewer = renderViewer(element('preview'), record, {
+      host, status, saveProgress: (value) => queueProgress(record.id, value),
     });
-    element('result-meta').textContent = `${record.source.path} | ${record.model.providerID}/${record.model.id}${record.model.variant ? `#${record.model.variant}` : ''}`;
-    state.filename = `summary-${record.id}.md`;
-    controls.filename.update({ value: state.filename });
-    element('save-status').textContent = record.savedPath ? `Exported to ${record.savedPath}` : 'Stored in this project\'s Studio history. Export creates a new Markdown file in the project root.';
+    state.filename = `${record.format}-${record.id}.${format.extension}`;
+    controls.filename.update({ value: state.filename, helper: `A new .${format.extension} file in the project root. Existing files are never overwritten.` });
+    controls.save.update({ label: `Export .${format.extension}` });
+    element('save-status').textContent = record.savedPath ? `Exported to ${record.savedPath}` : 'Stored in this project\'s Studio history.';
   }
   if (record.error) status(record.error.message, true);
-  else status(complete ? 'Summary completed. Source coverage: 1/1 supplied in full.' : `Summary ${record.status}.`);
+  else status(complete ? `${labelFor(record.format)} completed. Source coverage: 1/1 supplied in full.` : `${labelFor(record.format)} ${record.status}.`);
   updateControls();
 }
 
@@ -159,10 +220,12 @@ async function refreshHistory(append = false) {
     state.rows = append ? [...state.rows, ...result.jobs] : result.jobs;
     state.next = result.next;
     controls.history.update({
-      options: state.rows.map((row) => ({ id: row.id, label: `${new Date(row.createdAt).toLocaleString()} - ${row.source.path}`, hint: row.status })),
+      options: state.rows.map((row) => ({
+        id: row.id, label: `${labelFor(row.format)} - ${new Date(row.createdAt).toLocaleString()} - ${row.source.path}`, hint: row.status,
+      })),
       value: state.record?.id ?? null,
     });
-    element('history-count').textContent = `${state.rows.length} of ${result.total} summaries shown.`;
+    element('history-count').textContent = `${state.rows.length} of ${result.total} artifacts shown.`;
     controls.more.update({ disabled: result.next === null });
     if (!state.active) {
       const active = result.jobs.find((job) => job.canCancel);
@@ -201,15 +264,18 @@ async function poll() {
 async function generate() {
   const epoch = state.epoch;
   const context = { ...state.context };
+  const format = formatFor(state.format);
   const input = {
-    id: crypto.randomUUID(), context, source: state.source,
+    id: crypto.randomUUID(), format: format.key, context, source: state.source,
     instructions: state.instructions, model: state.model?.ref,
   };
-  try { validateSummary(input); } catch (error) { status(message(error), true); return; }
+  try { validateJob(input); } catch (error) { status(message(error), true); return; }
   state.submitting = true;
+  state.viewer?.dispose();
+  state.viewer = null;
   state.record = null;
   element('result-section').hidden = true;
-  status('Submitting summary...');
+  status(`Submitting ${format.noun}...`);
   updateControls();
   try {
     const created = await rpc('POST', '/jobs', input);
@@ -255,6 +321,8 @@ async function save() {
 }
 
 function mount() {
+  element('build-label').textContent = `Development build - ${IMPLEMENTED.length} of ${FORMATS.length} formats`;
+  mountFormats();
   controls.refresh = mountButton(element('refresh'), { label: 'Refresh connection and history', variant: 'secondary', size: 'sm', onClick: () => { void refreshConnection(); void refreshHistory(); } });
   controls.model = mountSelect(element('model'), { label: 'Generation model', options: [], value: null, searchable: true, disabled: true, onChange: (key) => {
     state.model = state.models.find((model) => model.key === key) ?? null;
@@ -275,20 +343,12 @@ function mount() {
   } });
   controls.generate = mountButton(element('generate'), { label: 'Generate summary', disabled: true, onClick: () => { void generate(); } });
   controls.cancel = mountButton(element('cancel'), { label: 'Cancel', variant: 'outline', disabled: true, onClick: () => { void cancel(); } });
-  controls.history = mountSelect(element('history'), { label: 'Summary history', options: [], value: null, onChange: (id) => { void openRecord(id); } });
+  controls.history = mountSelect(element('history'), { label: 'Studio history', options: [], value: null, onChange: (id) => { void openRecord(id); } });
   controls.more = mountButton(element('more'), { label: 'Load more', variant: 'ghost', size: 'sm', disabled: true, onClick: () => { void refreshHistory(true); } });
-  controls.filename = mountTextField(element('filename'), { label: 'Export filename', value: '', helper: 'A new .md file in the project root. Existing files are never overwritten.', onChange: (value) => {
+  controls.filename = mountTextField(element('filename'), { label: 'Export filename', value: '', helper: 'A new file in the project root. Existing files are never overwritten.', onChange: (value) => {
     state.filename = value; controls.filename.update({ value }); updateControls();
   } });
-  controls.save = mountButton(element('save'), { label: 'Export Markdown', disabled: true, onClick: () => { void save(); } });
-  element('preview').addEventListener('click', (event) => {
-    const link = event.target.closest?.('a');
-    if (!link) return;
-    event.preventDefault();
-    const href = link.getAttribute('href') ?? '';
-    if (/^https?:\/\//i.test(href)) void host.openUrl(href).catch((error) => status(message(error), true));
-    else status('Open project-relative source links through OpenChamber\'s Files view.');
-  });
+  controls.save = mountButton(element('save'), { label: 'Export', disabled: true, onClick: () => { void save(); } });
 }
 
 host.onReady((ctx) => {
@@ -297,9 +357,10 @@ host.onReady((ctx) => {
   const next = { directory: ctx.directory, sessionId: ctx.session?.id ?? '', hostOrigin: new URL(window.location.href).origin };
   if (state.context?.directory === next.directory && state.context?.sessionId === next.sessionId) return;
   clearTimeout(state.timer);
+  state.viewer?.dispose();
   state.context = next; state.epoch += 1;
   state.ready = false; state.model = null; state.models = []; state.source = null; state.path = '';
-  state.active = null; state.record = null; state.rows = []; state.next = null; state.submitting = false;
+  state.active = null; state.record = null; state.viewer = null; state.rows = []; state.next = null; state.submitting = false;
   controls.path.update({ value: '' }); controls.files.update({ options: [], value: null });
   controls.model.update({ options: [], value: null }); controls.history.update({ options: [], value: null });
   element('project').textContent = next.directory || 'No project selected';
@@ -311,6 +372,7 @@ host.onReady((ctx) => {
 
 window.addEventListener('pagehide', () => {
   clearTimeout(state.timer);
+  state.viewer?.dispose();
   for (const control of Object.values(controls)) control.dispose();
   host.dispose();
 });
