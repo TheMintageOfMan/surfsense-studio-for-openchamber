@@ -6,6 +6,10 @@ export const SOURCE_KINDS = Object.freeze({
   pdf: { extractor: 'pdf', extensions: ['pdf'] },
   pptx: { extractor: 'pptx', extensions: ['pptx'] },
   xlsx: { extractor: 'xlsx', extensions: ['xlsx'] },
+  // Word, Excel and PowerPoint 97-2003, read without extra libraries (shared/service/legacy*.mjs).
+  doc: { extractor: 'doc', extensions: ['doc'] },
+  xls: { extractor: 'xls', extensions: ['xls'] },
+  ppt: { extractor: 'ppt', extensions: ['ppt'] },
 });
 
 const BY_EXTENSION = new Map(Object.entries(SOURCE_KINDS).flatMap(([kind, entry]) => entry.extensions.map((extension) => [extension, kind])));
