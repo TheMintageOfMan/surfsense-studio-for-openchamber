@@ -1,6 +1,6 @@
 # SurfSense Studio for OpenChamber v2
 
-Turn your notes into study material and documents with one tap. SurfSense Studio is an independent, optional extension for [OpenChamber](https://github.com/openchamber/openchamber). It takes the documents in a project (text, Markdown, Word, PDF, PowerPoint, Excel, CSV, JSON, web pages and more) and, if you like, the current chat, and makes summaries, flashcards, quizzes, mind maps, web pages, Word reports, slide decks, spreadsheets, PDFs and infographics from them, using the AI models you already have in OpenChamber.
+Turn your notes into study material and documents with one tap. SurfSense Studio is an independent, optional extension for [OpenChamber](https://github.com/openchamber/openchamber). It takes the documents in a project (text, Markdown, Word, PDF, PowerPoint, Excel, including the old 97-2003 formats, CSV, JSON, web pages and more) and, if you like, the current chat, and makes summaries, flashcards, quizzes, mind maps, web pages, Word reports, slide decks, spreadsheets, PDFs and infographics from them, using the AI models you already have in OpenChamber.
 
 It is built for anyone aged ten and up who is not technical: pick your files, tap a tile, open the result, save it. Studio chooses sensible defaults and quietly recovers from most problems.
 
@@ -29,7 +29,8 @@ It is built for anyone aged ten and up who is not technical: pick your files, ta
 | Word | `.docx` | [Mammoth](https://github.com/mwilliamson/mammoth.js) |
 | PDF | `.pdf` | [PDF.js](https://github.com/mozilla/pdf.js) text, page by page |
 | PowerPoint | `.pptx` | Slide text and speaker notes, in slide order |
-| Excel | `.xlsx` | Every sheet, row by row |
+| Excel | `.xlsx` | Every sheet, row by row; dates and times shown as dates, not day numbers |
+| Office 97-2003 | `.doc`, `.xls`, `.ppt` | Studio's own reader for the old binary formats (no extra library): document text, every sheet with dates, slides with notes |
 | This chat | The OpenChamber chat Studio is open beside | See below |
 
 Studio looks in the project folder and up to two folders down, skipping tool folders such as `node_modules` and boilerplate such as license files. A file it cannot use is still listed, greyed out, with the reason: for example a scanned PDF with no text, a password-protected file or a damaged one.
@@ -112,8 +113,8 @@ Infographic PNGs are drawn in the panel, because the library places text in a wa
 
 ## Limits and known issues
 
-- Selected sources can total 32,000 characters of text, up to 20 files; the chat counts as at most 10,000. Studio refuses rather than cutting a source short. (The panel now sends only file names, so this limit can be raised later.)
-- No OCR: a scanned PDF has no text to read. Old binary Office formats (`.doc`, `.ppt`, `.xls`) and files over 25 MB are not read. Excel dates appear as Excel's day numbers. PDFs in East Asian scripts may lack text because PDF.js character maps are not bundled.
+- Selected sources can total 200,000 characters of text (about 50,000 words), up to 50 files; the chat counts as at most 10,000. Studio refuses rather than cutting a source short.
+- No OCR: a scanned PDF has no text to read. Files over 25 MB, encrypted files and pre-1997 Office formats are not read. In old `.doc` files only the main text is read (not headers, footnotes or comments). PDFs in East Asian scripts may lack text because PDF.js character maps are not bundled.
 - **Automatic** uses a model verified with every format when one is available (GPT-6 Astra Ultrafast on the test machine). Otherwise it uses the chat's model without a reasoning variant. A Claude Opus 5.5 run at variant `max` returned empty text for structured formats through OpenCode's stateless route.
 - PowerPoint and Excel files name the Inter font but cannot carry it, so those apps substitute a font where Inter is not installed. Word, PDF, web pages and infographics carry Inter with them.
 - PDF characters Inter cannot draw, such as emoji, appear as `?` and are listed under **About this**.
@@ -146,7 +147,7 @@ npm run build   # rebuilds windows-11-x64/ and linux-fedora-amd64/
 ## Project status
 
 **Checked live on Windows** through the installed extension:
-- All ten formats generated from real project files, including PDF, Word, PowerPoint, CSV, HTML and the current chat (compressed by OpenCode).
+- All ten formats generated from real project files, including PDF, Word, PowerPoint, CSV, HTML, the old `.doc`, `.xls` and `.ppt` formats, and the current chat (compressed by OpenCode).
 - Previews, study progress, history, quiet recovery, and saving.
 - Word, PowerPoint and Excel files opened in Microsoft Office without repair. Exported files matched the stored files byte for byte (MD5).
 - Infographic PNG and SVG saving.

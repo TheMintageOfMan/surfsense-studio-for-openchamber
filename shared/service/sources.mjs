@@ -8,6 +8,9 @@ import { decodeHTML, decodeXML } from 'entities';
 import mammoth from 'mammoth';
 import { StudioError } from '../common/core.mjs';
 import { SOURCE_KINDS, sourceKind } from '../common/sources.mjs';
+import { excelDateText, isDateFormat } from './excel-dates.mjs';
+import { docText, xlsText } from './legacy.mjs';
+import { pptText } from './legacy-ppt.mjs';
 
 // Larger files are almost always data dumps or scans, and slow to parse.
 const FILE_BYTES = 25 * 1024 * 1024;
@@ -81,12 +84,22 @@ export function xlsxText(bytes) {
     .map((si) => [...si[0].matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map((t) => xmlText(t[1])).join(''));
   const workbook = part(entries, 'xl/workbook.xml');
   const rels = part(entries, 'xl/_rels/workbook.xml.rels');
+  // Dates are numbers whose cell style points at a date format; find which styles those are.
+  const date1904 = /<workbookPr\b[^>]*\bdate1904="(1|true)"/.test(workbook);
+  const stylesXml = part(entries, 'xl/styles.xml');
+  const customFormats = new Map([...stylesXml.matchAll(/<numFmt\b([^>]*)\/?>/g)].map((m) => [Number(m[1].match(/\bnumFmtId="(\d+)"/)?.[1]), xmlText(m[1].match(/\bformatCode="([^"]*)"/)?.[1] ?? '')]));
+  const cellStyles = [...(stylesXml.match(/<cellXfs\b[\s\S]*?<\/cellXfs>/)?.[0] ?? '').matchAll(/<xf\b([^>]*)/g)].map((m) => Number(m[1].match(/\bnumFmtId="(\d+)"/)?.[1] ?? 0));
   const targets = relationships(rels);
   // Attribute order varies between writers, so each attribute is read on its own.
   const sheets = [...workbook.matchAll(/<sheet\b([^>]*)\/?>/g)].map((m) => {
     const target = targets.get(m[1].match(/\br:id="([^"]+)"/)?.[1]) ?? '';
     return { name: xmlText(m[1].match(/\bname="([^"]*)"/)?.[1] ?? 'Sheet'), file: target.startsWith('/') ? target.slice(1) : path.posix.normalize(path.posix.join('xl', target)) };
   });
+  const numberText = (raw, attrs) => {
+    const formatId = cellStyles[Number(attrs.match(/\bs="(\d+)"/)?.[1] ?? 0)];
+    const value = Number(raw);
+    return isDateFormat(formatId, customFormats.get(formatId)) ? excelDateText(value, date1904, customFormats.get(formatId)) : xmlText(raw);
+  };
   const out = [];
   for (const sheet of sheets) {
     const rows = [];
@@ -101,7 +114,9 @@ export function xlsxText(bytes) {
         const value = type === 's' ? shared[Number(raw)] ?? ''
           : type === 'inlineStr' ? [...body.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map((t) => xmlText(t[1])).join('')
             : type === 'b' ? (raw === '1' ? 'TRUE' : 'FALSE')
-              : raw === undefined ? '' : xmlText(raw);
+              : raw === undefined ? ''
+                : type === undefined || type === 'n' ? numberText(raw, attrs)
+                  : xmlText(raw);
         cells[ref ? column(ref) : cells.length] = value.replace(/\s+/g, ' ').trim();
       }
       if (cells.some(Boolean)) rows.push(Array.from(cells, (value) => value ?? '').join('\t'));
@@ -170,6 +185,9 @@ const EXTRACTORS = {
   pdf: pdfText,
   pptx: pptxText,
   xlsx: xlsxText,
+  doc: docText,
+  xls: xlsText,
+  ppt: pptText,
 };
 
 // Resolves a project-relative path to a regular file inside the project, refusing links out.

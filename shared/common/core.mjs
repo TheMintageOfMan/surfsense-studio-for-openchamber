@@ -1,9 +1,10 @@
 import { CHAT_SOURCE, sourceKind } from './sources.mjs';
 
 export const LIMITS = Object.freeze({
-  // Total characters across all selected sources.
-  source: 32_000,
-  sources: 20,
+  // Total characters across all selected sources. Only file names cross the panel bridge now,
+  // so this bounds the prompt (about 50,000 tokens), well inside current models' context.
+  source: 200_000,
+  sources: 50,
   instructions: 2_000,
   request: 64_000,
   output: 100_000,
