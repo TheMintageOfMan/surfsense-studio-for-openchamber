@@ -4,7 +4,7 @@
 
 **Version:** 0.2  
 **Date:** 2026-10-06  
-**Status:** Draft specification. A Windows development build implements 9 of 12 formats: Summary, Word, Slides, Spreadsheet, Web page, PDF, Mind map, Flashcards, and Quiz. See [README.md](README.md) for what has been validated. The media and audio formats and cross-platform runtime validation have not been completed.
+**Status:** Draft specification. A Windows development build implements 10 of 12 formats: Summary, Word, Slides, Spreadsheet, Web page, PDF, Mind map, Flashcards, Quiz, and Infographic. See [README.md](README.md) for what has been validated. The media and audio formats and cross-platform runtime validation have not been completed.
 
 **Changes in 0.2:** Office and PDF files are built by trusted JavaScript builders inside the Studio service; Studio no longer plans a self-packaged Python runtime. The model connection route is settled for local hosts, and password-protected, remote, and relay hosts are out of scope.
 
@@ -63,14 +63,14 @@ Every generation uses the selected sources and model configuration. Outputs must
 | F06 | Document | Editable `.docx` report with structured headings, paragraphs, and supported tables. | Text model and the `docx` 9.9.0 DOCX builder. | Built |
 | F07 | Spreadsheet | Editable `.xlsx` containing tables extracted from sources; missing values remain missing or explicitly identified. | Text model and the `write-excel-file` 4.1.1 XLSX builder. | Built |
 | F08 | Web page | Self-contained `.html` with bundled/inline presentation assets and isolated preview. | Text model and trusted HTML builder. | Built |
-| F09 | PDF | Typeset `.pdf`, with preview and file export. | Text model and the `pdfkit` 0.20.2 PDF builder with bundled DejaVu Sans 2.37. | Built |
+| F09 | PDF | Typeset `.pdf`, with preview and file export. | Text model and the `pdfkit` 0.20.2 PDF builder with bundled Inter 4.1. | Built |
 | F10 | Podcast | Two-host spoken conversation, transcript, audio player, and exported audio. WAV is the baseline; MP3/ffmpeg is not required. | Text model and optional downloaded Kokoro audio pack. | Planned |
 | F11 | Image | An illustration based on the selected material, with preview and image-file export. | Text model for the brief/prompt and a configured image model. | Planned |
-| F12 | Infographic | A single-panel visual summary based on a factual brief, with preview and image-file export. | Text model and a configured image model. | Planned |
+| F12 | Infographic | A single-panel visual summary based on a factual brief, with preview and image-file export. | Text model and `@antv/infographic` 0.2.20, drawn in a service worker thread; no image model. | Built |
 
 Office previews may differ from Microsoft Office's rendering. Exported files must nevertheless be structurally valid and editable in compatible applications. Image and infographic outputs are not promised to be editable diagrams or to reproduce text perfectly.
 
-**Document builder choices (pass 3).** All four libraries are MIT-licensed, pure JavaScript, and make no network calls when given text only. `exceljs` 4.4.0 was rejected: last published in 2024 with deprecated dependencies, and much heavier than `write-excel-file`, whose only dependency is `fflate`. Noto Sans was rejected for PDF because it has no glyphs for common symbols such as U+2264 and U+2192; DejaVu Sans 2.37 (Bitstream Vera/DejaVu license) covers them. pdfkit's standard fonts are never loaded (`font: null`), so no metric file is read from disk after bundling. Characters the font cannot draw become "?" and are disclosed in the artifact notes. fontkit's WOFF2 decoder (`brotli`) is replaced at build time by a stub because only TrueType fonts are embedded. Builders rewrite ZIP entry times and `docProps/core.xml` dates from the record's `createdAt`, so rebuilding an artifact gives identical bytes. Previews render the validated artifact, not the file; `pdf.js` or `docx-preview` rendering was not added.
+**Document builder choices (pass 3).** All four libraries are MIT-licensed, pure JavaScript, and make no network calls when given text only. `exceljs` 4.4.0 was rejected: last published in 2024 with deprecated dependencies, and much heavier than `write-excel-file`, whose only dependency is `fflate`. Noto Sans and Open Sans were rejected because they lack glyphs for common symbols such as U+2192; Inter 4.1 (SIL OFL) has 2,852 characters including arrows and math symbols, and replaced DejaVu Sans so that every output uses one font. pdfkit's standard fonts are never loaded (`font: null`), so no metric file is read from disk after bundling. Characters the font cannot draw become "?" and are disclosed in the artifact notes. fontkit's WOFF2 decoder (`brotli`) is replaced at build time by a stub because only TrueType fonts are embedded. Builders rewrite ZIP entry times and `docProps/core.xml` dates from the record's `createdAt`, so rebuilding an artifact gives identical bytes; Word's embedded-font key is derived from the font bytes for the same reason. Previews render the validated artifact, not the file; `pdf.js` or `docx-preview` rendering was not added.
 
 ## 5. User workflow
 
@@ -177,7 +177,7 @@ These are observations from the inspected repository revisions, not promised lim
 
 | Observed constraint | Design consequence |
 |---|---|
-| Local-path/URL extension ZIPs: 20 MiB archive limit. ZIP extraction: 40 MiB expanded and 500 files. Browser uploads have a separate upload limit but use the same extractor. | Measure each base package's compressed size, expanded size, and file count. With document builders and fonts, each platform folder is about 3.26 MB expanded in 10 files and about 1.29 MB as a ZIP. |
+| Local-path/URL extension ZIPs: 20 MiB archive limit. ZIP extraction: 40 MiB expanded and 500 files. Browser uploads have a separate upload limit but use the same extractor. | Measure each base package's compressed size, expanded size, and file count. With document builders, the infographic renderer and fonts, each platform folder is about 4.6 MB expanded in 13 files and about 2.0 MB as a ZIP. |
 | Folder installs do not use the extension ZIP extractor. | Complete extracted-folder distributions are the supported fallback without modifying OpenChamber. |
 | `host.generate`: Small Model, 64,000-character prompt, 4,000 output tokens, 90-second wait. | Not used for Studio generation. Studio uses OpenCode's stateless route with an explicit model. |
 | Panel service requests: 64,000-character request body, 256,000-character text response, normal 20-second timeout. | Submit asynchronous jobs and exchange bounded status/metadata. Keep binary files on the service side; use bounded chunk transfer only where a preview needs file bytes. |
@@ -236,7 +236,9 @@ This sequence does not remove any format from the complete product scope.
 - Studio is an optional, independently distributed extension with no OpenChamber fork or installer change.
 - No self-packaged Python; document formats use JavaScript builders in the service.
 - Text generation uses the local OpenChamber proxy, OpenCode's base model catalog, and its stateless route. Password-protected, remote, and relay hosts are out of scope.
-- Document builders: `docx`, `pptxgenjs`, `write-excel-file`, and `pdfkit` with DejaVu Sans; panel previews render the validated artifact (see section 4).
+- Document builders: `docx`, `pptxgenjs`, `write-excel-file`, and `pdfkit`; panel previews render the validated artifact (see section 4).
+- One font everywhere: Inter 4.1 (OFL), replacing DejaVu Sans. Embedded in the panel, previews, PDF, Word, web pages and infographic SVG/PNG; named only in PPTX and XLSX, which these libraries cannot embed.
+- Infographics are drawn by AntV Infographic from a model-chosen layout on a checked allowlist, not by an image model. Icons come from AntV's keyword icon service; PNG is rasterized in the panel because the library sets text in SVG `foreignObject`.
 
 ### Decisions still open
 

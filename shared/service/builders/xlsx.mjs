@@ -1,4 +1,5 @@
 import writeExcelFile from 'write-excel-file/node';
+import { FONT_FAMILY } from '../../common/font.mjs';
 import { GENERATOR, normalizeZip, provenance } from './shared.mjs';
 
 // Width in characters from the longest value, within a readable range.
@@ -26,6 +27,7 @@ export async function buildXlsx(artifact, meta) {
     data: info.map(([label, value]) => [label === null ? null : { value: label, fontWeight: 'bold' }, value === null ? null : { value, wrap: true }]),
     columns: [{ width: 24 }, { width: 100 }],
   });
-  const bytes = await writeExcelFile(sheets).toBuffer();
+  // Excel names the font but cannot embed it; Inter shows where installed.
+  const bytes = await writeExcelFile(sheets, { fontFamily: FONT_FAMILY }).toBuffer();
   return { bytes: normalizeZip(bytes, meta.createdAt), notes: [], pages: sheets.length };
 }

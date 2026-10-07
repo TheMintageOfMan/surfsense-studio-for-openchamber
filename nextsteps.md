@@ -9,8 +9,11 @@ Plan for the next working session. Read [SPEC.md](SPEC.md), [README.md](README.m
 - Simple UI pass (branch `feat/simple-ui`): NotebookLM-style panel with source tick boxes, colored tiles that create on tap, a pencil for one choice plus focus, a creations list, a full-panel viewer with **Save**, and a gear for the model (Automatic by default). Quiet recovery: the chosen model twice, then the recommended model once. Checked live in the panel: Quiz, a short Summary, and two-source Flashcards completed, and Save wrote a title-named file. 25/25 tests pass.
 - Package: about 3.27 MB expanded in 10 files and 1.29 MB zipped per platform folder.
 - Fedora is build-only. Nothing has been tested on Linux or macOS.
-- Settled: no self-packaged Python; `docx`, `pptxgenjs`, `write-excel-file`, and `pdfkit` with DejaVu Sans (SPEC section 4). Text generation uses the local OpenChamber proxy, OpenCode's base model catalog, and its stateless route. Password-protected, remote, and relay hosts are out of scope.
+- Settled: no self-packaged Python; `docx`, `pptxgenjs`, `write-excel-file`, and `pdfkit`; Inter is the one font (SPEC section 4). Text generation uses the local OpenChamber proxy, OpenCode's base model catalog, and its stateless route. Password-protected, remote, and relay hosts are out of scope.
 - Merged pull requests: #1 (Summary), #2 (study formats and web page), #3 (this plan).
+
+- Pass 4a (branch `feat/infographic`, pushed, no pull request yet): Infographic tile (10 of 12) and Inter as the one font everywhere. Live in the panel: a compare layout and a simple roadmap generated from two sources; Save wrote SVG and PNG; Word showed embedded Inter where it is not installed. 28/28 tests pass. Package about 4.6 MB expanded, 13 files, 2.0 MB zipped.
+- Next: Picture (needs an image model) and Podcast (Kokoro pack), per section 4.
 
 ## 2. Working setup
 

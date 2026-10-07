@@ -4,7 +4,7 @@ An independent, optional OpenChamber extension bringing SurfSense-style Studio c
 
 Read [SPEC.md](SPEC.md) for the high-level specification, platform packaging, and optional Kokoro download design, and [nextsteps.md](nextsteps.md) for the plan.
 
-**Status:** Development build with 9 of 12 formats: Summary, Word, Slides, Spreadsheet, Web page, PDF, Mind map, Flashcards, and Quiz. Twenty-five focused tests pass. On Windows, the installed extension generated each format live from the complete `SPEC.md`; previews, study progress, history reopening, and exports were checked, and the Word, PowerPoint, and Excel exports opened in Microsoft Office without repair. Fedora is build-only and has not been runtime-tested.
+**Status:** Development build with 10 of 12 formats: Summary, Word, Slides, Spreadsheet, Web page, PDF, Mind map, Flashcards, Quiz, and Infographic. Twenty-eight focused tests pass. On Windows, the installed extension generated each format live from the complete `SPEC.md`; previews, study progress, history reopening, and exports were checked, and the Word, PowerPoint, and Excel exports opened in Microsoft Office without repair. Fedora is build-only and has not been runtime-tested.
 
 ## Install the development build
 
@@ -27,8 +27,11 @@ Open a chat in a project and open **SurfSense Studio**. Tick the `.md` or `.txt`
 | Word, PDF | Editable `.docx` or typeset `.pdf` with headings, paragraphs, bullets, and tables; outline preview | 12 sections; tables 8 columns x 50 rows |
 | Slides | Editable 16:9 `.pptx` with a title slide and speaker notes; slide-card preview | 15 slides, 6 bullets each |
 | Spreadsheet | `.xlsx` of tables taken from the source, missing values left empty, plus a Notes sheet; table preview | 10 sheets, 20 columns, 500 rows |
+| Infographic | One-page poster drawn by AntV Infographic from one of 16 checked layouts (steps, timeline, compare, charts, tree and more); Save gives a PNG and an SVG | 8 items; short text, cuts disclosed |
 
-Podcast, Image, and Infographic appear as disabled tiles that state what they still need. They have no implementation yet.
+Podcast and Picture appear as disabled tiles. They have no implementation yet.
+
+Everything uses one font, **Inter** (SIL Open Font License): the panel, previews, PDFs, web pages and infographics embed it, and Word documents embed it too. Slides and spreadsheets name Inter but cannot carry it, so PowerPoint and Excel substitute a font where Inter is not installed.
 
 ### Current boundaries
 
@@ -42,7 +45,8 @@ Podcast, Image, and Infographic appear as disabled tiles that state what they st
 - A live run with Claude Opus 5.5 at variant `max` returned no text through OpenCode's stateless route for all four structured formats. Studio reports this as an empty result. The same formats succeeded with GPT-6 Astra Ultrafast.
 - Large mind maps are small in the side panel; zoom in, or open Studio as a full-screen extension page.
 - Cancellation aborts Studio's request; a provider may still bill work already started. Closing the panel does not stop service-owned jobs.
-- Document previews show the content the file was built from, not a rendering of the file. PDF characters the bundled DejaVu Sans font cannot draw appear as "?" and are listed in the notes.
+- Document previews show the content the file was built from, not a rendering of the file. PDF characters Inter cannot draw (such as emoji) appear as "?" and are listed in the notes.
+- Infographic icons are looked up by keyword on AntV's icon service (weavefox.cn); only the keyword is sent. Without a connection the infographic is drawn without icons.
 - No Python is used. No image adapter or Kokoro download is included yet.
 
 ## Develop

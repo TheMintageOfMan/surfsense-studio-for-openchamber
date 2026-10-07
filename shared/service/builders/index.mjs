@@ -2,13 +2,14 @@
 // Every builder takes the validated artifact plus record metadata and returns the file bytes;
 // model text is only ever placed as text runs, never interpreted as markup or code.
 import { buildDocx } from './docx.mjs';
+import { buildInfographicFile } from './infographic.mjs';
 import { buildPdf } from './pdf.mjs';
 import { buildPptx } from './pptx.mjs';
 import { buildXlsx } from './xlsx.mjs';
 
 export { fileMeta } from './shared.mjs';
 
-const BUILDERS = { docx: buildDocx, pptx: buildPptx, xlsx: buildXlsx, pdf: buildPdf };
+const BUILDERS = { docx: buildDocx, pptx: buildPptx, xlsx: buildXlsx, pdf: buildPdf, infographic: buildInfographicFile };
 
 // Returns { bytes, notes, pages } where notes disclose anything the file could not carry.
 export async function buildFile(format, artifact, meta) {

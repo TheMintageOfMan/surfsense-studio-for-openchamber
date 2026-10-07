@@ -1,20 +1,15 @@
-import fs from 'node:fs/promises';
 import PDFDocument from 'pdfkit';
 import { GENERATOR, provenance } from './shared.mjs';
 import { plural } from '../../common/core.mjs';
+import { boldTtf, regularTtf } from '../fonts.mjs';
 
-// Fonts ship as files beside the bundled service (service/fonts/) and in shared/fonts/ for tests.
-// pdfkit's standard fonts load metric files from its own package folder, which does not exist
-// once bundled, and cover only WinAnsi; DejaVu Sans covers the punctuation and symbols models use.
-const FONT_DIR = typeof __STUDIO_FONTS__ === 'undefined' ? new URL('../../fonts/', import.meta.url) : new URL(__STUDIO_FONTS__, import.meta.url);
-let fonts;
-const loadFonts = async () => (fonts ??= Promise.all(['DejaVuSans.ttf', 'DejaVuSans-Bold.ttf'].map((name) => fs.readFile(new URL(name, FONT_DIR)))));
-
+// Inter is embedded from the bundled files. pdfkit's standard fonts load metric files from its own
+// package folder, which does not exist once bundled, so they are never used (font: null).
 const MARGIN = 72;
 const GREY = '#555555';
 
 export async function buildPdf(artifact, meta) {
-  const [regular, bold] = await loadFonts();
+  const [regular, bold] = await Promise.all([regularTtf(), boldTtf()]);
   const doc = new PDFDocument({
     // font: null skips pdfkit's default Helvetica, so no standard-font file is ever read.
     font: null, size: 'LETTER', margin: MARGIN, bufferPages: true, compress: true, lang: 'en-US', displayTitle: true,

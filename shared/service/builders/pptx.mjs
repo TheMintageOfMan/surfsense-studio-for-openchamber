@@ -1,11 +1,14 @@
 import PptxGenJS from 'pptxgenjs';
+import { FONT_FAMILY as FONT } from '../../common/font.mjs';
 import { GENERATOR, normalizeZip, provenance } from './shared.mjs';
 
-const FONT = 'Calibri';
+// PowerPoint files name the font but this library cannot embed it; Inter shows where it is
+// installed and PowerPoint substitutes elsewhere.
 
 export async function buildPptx(artifact, meta) {
   const deck = new PptxGenJS();
   deck.layout = 'LAYOUT_WIDE';
+  deck.theme = { headFontFace: FONT, bodyFontFace: FONT };
   Object.assign(deck, { author: GENERATOR, company: '', title: artifact.title, subject: `Generated from ${meta.source}` });
 
   const cover = deck.addSlide();

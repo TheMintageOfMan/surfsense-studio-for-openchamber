@@ -1,3 +1,4 @@
+/* Inter, Studio's one font, is installed by fonts.js (bundled; see there for why). */
 /* Studio panel. Host theme variables come from applyHostReady; fallbacks keep it readable alone. */
 :root {
   color-scheme: light dark;
@@ -14,7 +15,7 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--fg); }
-body { font: 14px/1.5 var(--oc-font, system-ui, -apple-system, "Segoe UI", sans-serif); }
+body { font: 14px/1.5 Inter, "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
@@ -144,6 +145,7 @@ main { max-width: 640px; margin: 0 auto; padding: 14px 14px 80px; display: grid;
 .mindmap { background: #fff; color: #1f2328; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .mindmap-svg { display: block; width: 100%; height: 60vh; min-height: 360px; }
 .outline pre { white-space: pre-wrap; font-family: var(--oc-mono, monospace); font-size: 12px; }
+.infographic-frame { display: block; width: 100%; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
 .webpage-frame { display: block; width: 100%; height: 70vh; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
 .doc-page { border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; background: var(--surface); }
 .doc-page h1 { font-size: 21px; margin: 4px 0 6px; }

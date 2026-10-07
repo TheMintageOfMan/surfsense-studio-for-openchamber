@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { LIMITS, modelKey, StudioError } from '../common/core.mjs';
 import { formatFor, validateJob } from '../common/formats.mjs';
 import { buildFile, fileMeta } from './builders/index.mjs';
+import { embeddedFontCss } from './fonts.mjs';
 import { exportFile, exportUnique, listRecords, readArtifactFile, readRecord, writeArtifactFile, writeRecord } from './storage.mjs';
 
 // Generous for 12 sections or 15 slides of text; a larger file means something went wrong.
@@ -20,6 +21,7 @@ const clearOutput = (record) => Object.assign(record, { title: null, markdown: n
 export class StudioJobs {
   #active = new Map();
   #locks = new Map();
+  #uploads = new Map();
 
   // `fallback` is an optional known-good model used once if the chosen model keeps failing.
   async start(directory, raw, generate, { fallback = null } = {}) {
@@ -82,7 +84,12 @@ export class StudioJobs {
     if (JSON.stringify(this.public(record)).length > LIMITS.response) {
       throw new StudioError('OUTPUT_TOO_LARGE', 'This artifact is too large for the host bridge. It was not truncated.');
     }
-    if (format.binary) await this.#storeFile(directory, record, format);
+    if (format.binary) {
+      await this.#storeFile(directory, record, format);
+      if (JSON.stringify(this.public(record)).length > LIMITS.response) {
+        throw new StudioError('OUTPUT_TOO_LARGE', 'This artifact is too large for the host bridge. It was not truncated.');
+      }
+    }
   }
 
   async #run(job, input, format, generate, fallback) {
@@ -143,6 +150,8 @@ export class StudioJobs {
     }
     if (built.bytes.length > FILE_BYTES) throw new StudioError('OUTPUT_TOO_LARGE', `The ${format.label} file exceeds this build's size limit.`);
     record.notes = [...record.notes, ...built.notes];
+    // A light preview (infographics) travels with the artifact so the panel can show it.
+    if (built.preview) record.artifact = { ...record.artifact, svg: built.preview };
     const name = await writeArtifactFile(directory, record, format.extension, built.bytes);
     record.file = { name, bytes: built.bytes.length, md5: digest(built.bytes), pages: built.pages };
   }
@@ -218,11 +227,38 @@ export class StudioJobs {
         // Binary bytes are copied service-side; they never travel through the panel bridge.
         content = await readArtifactFile(directory, record, FILE_BYTES);
         if (digest(content) !== record.file.md5) throw new StudioError('FILE_CHANGED', 'The stored file no longer matches this artifact. Regenerate explicitly.', 409);
-      } else content = format.exportContent ? format.exportContent(record) : record.markdown;
+      } else content = format.exportContent ? format.exportContent(record, { fontCss: await embeddedFontCss() }) : record.markdown;
       record.savedPath = filename === null
         ? await exportUnique(directory, content, record.title || format.label, format.extension)
         : await exportFile(directory, content, filename, format.extension);
       return { savedPath: record.savedPath };
+    });
+  }
+
+  // A PNG of an infographic is drawn by the panel (the text needs a browser to rasterize) and
+  // arrives in bridge-sized base64 chunks. Chunks are held in memory only until the last one.
+  async savePicture(directory, id, { upload, index, total, data } = {}) {
+    if (typeof upload !== 'string' || !/^[0-9a-f-]{36}$/i.test(upload) || !Number.isInteger(index) || !Number.isInteger(total)
+        || total < 1 || total > 600 || index < 0 || index >= total || typeof data !== 'string' || data.length > 48_000 || !/^[A-Za-z0-9+/=]*$/.test(data)) {
+      throw new StudioError('BAD_UPLOAD', 'Invalid picture upload.');
+    }
+    const now = Date.now();
+    for (const [key, entry] of this.#uploads) if (now - entry.started > 300_000) this.#uploads.delete(key);
+    const entry = this.#uploads.get(upload) ?? { id, total, parts: [], started: now };
+    if (entry.id !== id || entry.total !== total || index !== entry.parts.length) throw new StudioError('BAD_UPLOAD', 'Picture chunks arrived out of order. Try saving again.');
+    entry.parts.push(data);
+    this.#uploads.set(upload, entry);
+    if (entry.parts.length < total) return { received: entry.parts.length };
+    this.#uploads.delete(upload);
+    const bytes = Buffer.from(entry.parts.join(''), 'base64');
+    if (bytes.length > FILE_BYTES || !bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+      throw new StudioError('BAD_UPLOAD', 'That picture could not be saved. Try again.');
+    }
+    return this.#update(directory, id, async (record, format) => {
+      if (format.key !== 'infographic') throw new StudioError('BAD_UPLOAD', 'Only infographics are saved as pictures.');
+      const savedPath = await exportUnique(directory, bytes, record.title || format.label, 'png');
+      record.savedPicture = savedPath;
+      return { savedPath };
     });
   }
 
