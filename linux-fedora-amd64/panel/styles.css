@@ -1,0 +1,27 @@
+:root { color-scheme: light dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--oc-background, transparent); font-size: 13px; line-height: 1.55; }
+main { max-width: 860px; margin: auto; padding: 16px; }
+header { margin-bottom: 18px; }
+h1 { font-size: 19px; margin: 0; letter-spacing: -0.02em; }
+h2 { font-size: 14px; margin: 0 0 10px; }
+p { margin: 6px 0 10px; }
+section { border-top: 1px solid var(--oc-border, #8884); padding: 16px 0; }
+section > div { margin-bottom: 10px; }
+.muted { opacity: .72; }
+.small { font-size: 11px; }
+.path { overflow-wrap: anywhere; font-family: var(--oc-font-mono, monospace); font-size: 11px; }
+.build-label { display: inline-block; margin-top: 8px; padding: 3px 7px; border: 1px solid var(--oc-border, #8884); border-radius: 5px; font-size: 11px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+[data-error="true"] { color: var(--error-text, #bf4545); }
+#result-meta, #save-status { overflow-wrap: anywhere; }
+.markdown { overflow-wrap: anywhere; padding: 4px 0 14px; }
+.markdown h1 { font-size: 20px; margin: 8px 0 12px; }
+.markdown h2 { font-size: 16px; margin: 20px 0 8px; }
+.markdown h3 { font-size: 14px; }
+.markdown pre { overflow-x: auto; padding: 10px; border: 1px solid var(--oc-border, #8884); border-radius: 5px; }
+.markdown code { font-family: var(--oc-font-mono, monospace); }
+.markdown a { color: var(--primary-text, #608cd9); }
+.markdown table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
+.markdown th, .markdown td { border: 1px solid var(--oc-border, #8884); padding: 5px 8px; text-align: left; }
+[hidden] { display: none !important; }

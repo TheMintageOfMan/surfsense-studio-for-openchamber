@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SurfSense Studio for OpenChamber v2</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="studio">
+    <header>
+      <h1>SurfSense Studio</h1>
+      <p class="muted">for OpenChamber v2</p>
+      <span class="build-label">Summary development build - 1 of 12 formats</span>
+    </header>
+    <section aria-labelledby="connection-heading">
+      <h2 id="connection-heading">Connection</h2>
+      <p id="project" class="path muted"></p>
+      <p id="connection" role="status">Waiting for OpenChamber...</p>
+      <div id="refresh"></div>
+      <div id="model"></div>
+    </section>
+    <section aria-labelledby="source-heading">
+      <h2 id="source-heading">Source</h2>
+      <div id="files"></div>
+      <div id="source-path"></div>
+      <div id="load"></div>
+      <p id="coverage" class="muted" role="status">No source loaded.</p>
+      <div id="instructions"></div>
+      <div class="actions"><div id="generate"></div><div id="cancel"></div></div>
+      <p id="status" role="status" aria-live="polite"></p>
+      <p class="muted small">Generation sends the selected source to the chosen model and may incur provider charges. Cancellation requests interruption; work already started may still be billed.</p>
+    </section>
+    <section aria-labelledby="history-heading">
+      <h2 id="history-heading">Saved summaries</h2>
+      <div id="history"></div>
+      <p id="history-count" class="muted"></p>
+      <div id="more"></div>
+    </section>
+    <section id="result-section" hidden aria-labelledby="result-heading">
+      <h2 id="result-heading">Preview</h2>
+      <p id="result-meta" class="muted"></p>
+      <article id="preview" class="markdown"></article>
+      <div id="filename"></div>
+      <div id="save"></div>
+      <p id="save-status" role="status"></p>
+    </section>
+  </main>
+  <script src="main.js"></script>
+</body>
+</html>

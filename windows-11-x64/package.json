@@ -1,0 +1,33 @@
+{
+  "name": "surfsense-studio-for-openchamber",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SurfSense Studio for OpenChamber v2 - Summary development build",
+  "studioPlatform": {
+    "os": "win32",
+    "arch": "x64"
+  },
+  "openchamber": {
+    "apiVersion": 1,
+    "engines": {
+      "openchamber": ">=2.1.1"
+    },
+    "contributes": {
+      "panel": {
+        "id": "surfsense-studio-v2",
+        "name": "SurfSense Studio",
+        "icon": "panel/icon.svg",
+        "entry": "panel/index.html"
+      },
+      "page": true,
+      "capabilities": [
+        "files"
+      ],
+      "service": {
+        "entry": "service/main.js",
+        "runtime": "host"
+      }
+    }
+  }
+}
