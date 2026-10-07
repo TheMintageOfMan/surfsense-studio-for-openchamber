@@ -2,7 +2,7 @@
 
 An independent, optional OpenChamber extension bringing SurfSense-style Studio capabilities to selected sources: summaries, flashcards, quizzes, mind maps, slides, documents, spreadsheets, web pages, PDFs, podcasts, images, and infographics.
 
-Read [SPEC.md](SPEC.md) for the high-level specification, platform packaging, and optional Kokoro download design.
+Read [SPEC.md](SPEC.md) for the high-level specification, platform packaging, and optional Kokoro download design, and [nextsteps.md](nextsteps.md) for the plan.
 
 **Status:** Development build with 5 of 12 formats: Summary, Flashcards, Quiz, Mind map, and Web page. Fifteen focused tests pass. On Windows, the installed extension generated each format live from the complete `SPEC.md`; previews, study progress, history reopening, and exports were checked. Fedora is build-only and has not been runtime-tested.
 
