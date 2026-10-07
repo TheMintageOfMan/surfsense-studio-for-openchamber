@@ -33,17 +33,17 @@ function cleanTable(value, notes, label, { maxColumns, maxRows, cellValue }) {
   if (!value || typeof value !== 'object') return null;
   const columns = asList(value.columns).map(asText);
   if (!columns.length || columns.some((column) => !column)) {
-    notes.push(`Omitted the ${label} because its column headers were missing or blank.`);
+    notes.push(`Left out the ${label} because its column names were missing.`);
     return null;
   }
   if (columns.length > maxColumns) {
-    notes.push(`Omitted the ${label} because it has ${columns.length} columns; this build allows ${maxColumns}.`);
+    notes.push(`Left out the ${label} because it had ${columns.length} columns (the most is ${maxColumns}).`);
     return null;
   }
   const offered = asList(value.rows);
   const matching = offered.filter((row) => Array.isArray(row) && row.length === columns.length);
-  if (matching.length < offered.length) notes.push(`Omitted ${plural(offered.length - matching.length, 'row')} from the ${label} whose length did not match its ${columns.length} columns.`);
-  if (matching.length > maxRows) notes.push(`The ${label} had ${matching.length} rows; this build keeps the first ${maxRows}.`);
+  if (matching.length < offered.length) notes.push(`Left out ${plural(offered.length - matching.length, 'incomplete row')} from the ${label}.`);
+  if (matching.length > maxRows) notes.push(`Kept the first ${maxRows} of ${matching.length} rows in the ${label}.`);
   const rows = matching.slice(0, maxRows).map((row) => row.map(cellValue));
   return { columns, rows };
 }
@@ -64,8 +64,8 @@ function documentArtifact(raw, label) {
     }) : null;
     if (paragraphs.length || bullets.length || table) usable.push({ heading, paragraphs, bullets, table });
   });
-  if (usable.length < offered.length) notes.unshift(`Omitted ${plural(offered.length - usable.length, 'section')} without text, bullets or a usable table.`);
-  if (usable.length > CAPS.sections) notes.push(`The model returned ${usable.length} usable sections; this build keeps the first ${CAPS.sections}.`);
+  if (usable.length < offered.length) notes.unshift(`Left out ${plural(offered.length - usable.length, 'empty section')}.`);
+  if (usable.length > CAPS.sections) notes.push(`Kept the first ${CAPS.sections} of ${usable.length} sections.`);
   const sections = usable.slice(0, CAPS.sections);
   if (!sections.length) throw new StudioError('EMPTY_RESULT', `The model returned no usable ${label} sections. Nothing was saved; regenerate explicitly.`);
   const title = asText(spec.title) || label;
@@ -138,9 +138,9 @@ export const pptx = Object.freeze({
       if (bullets.length > CAPS.bullets) trimmed += 1;
       return { title: asText(slide?.title), bullets: bullets.slice(0, CAPS.bullets), notes: asText(slide?.notes) };
     }).filter((slide) => slide.title && slide.bullets.length);
-    if (usable.length < offered.length) notes.push(`Omitted ${plural(offered.length - usable.length, 'slide')} without a title and bullets.`);
-    if (trimmed) notes.push(`${plural(trimmed, 'slide')} had more than ${CAPS.bullets} bullets; this build keeps the first ${CAPS.bullets} on each.`);
-    if (usable.length > CAPS.slides) notes.push(`The model returned ${usable.length} usable slides; this build keeps the first ${CAPS.slides}.`);
+    if (usable.length < offered.length) notes.push(`Left out ${plural(offered.length - usable.length, 'slide')} without a title or points.`);
+    if (trimmed) notes.push(`Kept the first ${CAPS.bullets} points on ${plural(trimmed, 'slide')} that had more.`);
+    if (usable.length > CAPS.slides) notes.push(`Kept the first ${CAPS.slides} of ${usable.length} slides.`);
     const slides = usable.slice(0, CAPS.slides);
     if (!slides.length) throw new StudioError('EMPTY_RESULT', 'The model returned no usable slides. Nothing was saved; regenerate explicitly.');
     const title = asText(spec.title) || 'Slides';
@@ -209,18 +209,18 @@ export const xlsx = Object.freeze({
       const label = `table "${asText(table?.name) || index + 1}"`;
       const clean = cleanTable(table, notes, label, { maxColumns: CAPS.sheetColumns, maxRows: CAPS.sheetRows, cellValue: sheetCell(counter) });
       if (!clean?.rows.length) {
-        if (clean) notes.push(`Omitted the ${label} because it had no rows.`);
+        if (clean) notes.push(`Left out the ${label} because it had no rows.`);
         return;
       }
       usable.push({ ...clean, offeredName: asText(table.name), description: asText(table.description) });
     });
-    if (usable.length > CAPS.sheets) notes.push(`The model returned ${usable.length} usable tables; this build keeps the first ${CAPS.sheets}.`);
+    if (usable.length > CAPS.sheets) notes.push(`Kept the first ${CAPS.sheets} of ${usable.length} tables.`);
     const tables = usable.slice(0, CAPS.sheets).map((table, index) => {
       const name = sheetName(table.offeredName, taken, index);
-      if (table.offeredName && name !== table.offeredName) notes.push(`Renamed sheet "${table.offeredName}" to "${name}" to meet Excel's sheet-name rules.`);
+      if (table.offeredName && name !== table.offeredName) notes.push(`Renamed the sheet "${table.offeredName}" to "${name}", because Excel does not allow that name.`);
       return { name, description: table.description, columns: table.columns, rows: table.rows };
     });
-    if (counter.invalid) notes.push(`Left ${plural(counter.invalid, 'cell')} empty because the value was not text, a number or null.`);
+    if (counter.invalid) notes.push(`Left ${plural(counter.invalid, 'cell')} blank because the value could not be used.`);
     if (!tables.length) throw new StudioError('EMPTY_RESULT', 'The model returned no usable tables. Nothing was saved; regenerate explicitly.');
     const title = asText(spec.title) || 'Spreadsheet';
     const lines = [`# ${title}`];

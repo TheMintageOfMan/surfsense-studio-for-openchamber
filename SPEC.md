@@ -26,6 +26,7 @@ The extension should feel native to OpenChamber while owning its generation work
 8. **No application modification is authorized by this specification.** Implementation, installation, and configuration are separate work.
 9. **No self-packaged Python.** DOCX, PPTX, XLSX, and PDF files are built by trusted JavaScript builders that run in the Studio service on OpenChamber's own runtime.
 10. **Local hosts only.** Studio supports a local OpenChamber desktop host whose proxy accepts the extension's requests as configured. Password-protected, remote, and relay hosts are not supported, and Studio never bypasses authentication to reach them.
+11. **Written for everyone.** Studio must be usable by a capable ten-year-old and equally by adults who are experts in other fields or new to technology. Use plain, respectful words: never jargon, never talking down. Generated files name their sources plainly (no file paths, extensions or model names); technical detail is available, not imposed, under **About this**.
 
 ## 3. Scope and boundaries
 

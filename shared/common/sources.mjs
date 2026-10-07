@@ -24,3 +24,19 @@ export function sourceKind(path) {
 export const CHAT_SOURCE = 'chat:current';
 // Larger chats are sent as compressed context instead (shared/service/chat.mjs).
 export const CHAT_LIMIT = 10_000;
+
+// How a source is named to people and to the model: the file name without folders or extension
+// ("notes/Water cycle.docx" -> "Water cycle"); the chat is "this chat".
+export function displayName(path) {
+  if (path === CHAT_SOURCE) return 'this chat';
+  const base = String(path).split('/').pop();
+  return base.replace(/\.[a-z0-9]+$/i, '') || base;
+}
+
+// "A", "A and B", "A, B and C", "A, B, C and 2 more".
+export function joinNames(names) {
+  const list = names.slice(0, 3);
+  const rest = names.length - list.length;
+  if (rest) return `${list.join(', ')} and ${rest} more`;
+  return list.length > 1 ? `${list.slice(0, -1).join(', ')} and ${list.at(-1)}` : list[0] ?? '';
+}

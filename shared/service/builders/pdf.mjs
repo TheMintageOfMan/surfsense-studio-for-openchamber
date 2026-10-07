@@ -13,7 +13,7 @@ export async function buildPdf(artifact, meta) {
   const doc = new PDFDocument({
     // font: null skips pdfkit's default Helvetica, so no standard-font file is ever read.
     font: null, size: 'LETTER', margin: MARGIN, bufferPages: true, compress: true, lang: 'en-US', displayTitle: true,
-    info: { Title: artifact.title, Author: GENERATOR, Creator: GENERATOR, Producer: GENERATOR, Subject: `Generated from ${meta.source} with ${meta.model}`, CreationDate: meta.createdAt },
+    info: { Title: artifact.title, Author: GENERATOR, Creator: GENERATOR, Producer: GENERATOR, Subject: `Made from ${meta.source}`, CreationDate: meta.createdAt },
   });
   const chunks = [];
   doc.on('data', (chunk) => chunks.push(chunk));
@@ -63,7 +63,7 @@ export async function buildPdf(artifact, meta) {
   }
   if (meta.notes.length) {
     doc.moveDown(0.8);
-    write('Generation notes', 'bold', 12);
+    write('Changes Studio made', 'bold', 12);
     for (const note of meta.notes) write(`\u2022  ${note}`, 'body', 10, { color: GREY });
   }
 
@@ -80,6 +80,6 @@ export async function buildPdf(artifact, meta) {
   }
   doc.end();
   await ended;
-  const notes = missing.size ? [`The PDF font has no glyph for ${plural(missing.size, 'character')} (${[...missing].map((c) => `U+${c.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')}`).join(', ')}); each appears as "?".`] : [];
+  const notes = missing.size ? [`${missing.size === 1 ? 'One character' : `${missing.size} characters`} (${[...missing].join(' ')}) could not be shown in the PDF and appear${missing.size === 1 ? 's' : ''} as "?".`] : [];
   return { bytes: Buffer.concat(chunks), notes, pages: range.count };
 }

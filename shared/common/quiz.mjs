@@ -54,9 +54,9 @@ export const quiz = Object.freeze({
     if (!questions.length) throw new StudioError('EMPTY_RESULT', 'The model returned no usable quiz questions. Nothing was saved; regenerate explicitly.');
     const notes = [];
     if (usable.length < offered.length) {
-      notes.push(`Omitted ${plural(offered.length - usable.length, 'question')} without four distinct options and a valid answer.`);
+      notes.push(`Left out ${plural(offered.length - usable.length, 'question')} without four different choices and one right answer.`);
     }
-    if (usable.length > QUESTIONS) notes.push(`The model returned ${usable.length} usable questions; this build keeps the first ${QUESTIONS}.`);
+    if (usable.length > QUESTIONS) notes.push(`Kept the first ${QUESTIONS} of ${usable.length} questions.`);
     const title = asText(spec.title) || 'Quiz';
     const lines = [`# ${title}`, ''];
     questions.forEach((item, index) => {

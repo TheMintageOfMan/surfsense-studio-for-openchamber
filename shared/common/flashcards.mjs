@@ -39,8 +39,8 @@ export const flashcards = Object.freeze({
     const cards = usable.slice(0, CARDS);
     if (!cards.length) throw new StudioError('EMPTY_RESULT', 'The model returned no usable flashcards. Nothing was saved; regenerate explicitly.');
     const notes = [];
-    if (usable.length < offered.length) notes.push(`Omitted ${plural(offered.length - usable.length, 'incomplete card')} from the model.`);
-    if (usable.length > CARDS) notes.push(`The model returned ${usable.length} usable cards; this build keeps the first ${CARDS}.`);
+    if (usable.length < offered.length) notes.push(`Left out ${plural(offered.length - usable.length, 'incomplete card')}.`);
+    if (usable.length > CARDS) notes.push(`Kept the first ${CARDS} of ${usable.length} cards.`);
     const title = asText(spec.title) || 'Flashcards';
     const lines = [`# ${title}`, ''];
     cards.forEach((card, index) => lines.push(`**${index + 1}. ${card.front}**`, '', card.back, ''));

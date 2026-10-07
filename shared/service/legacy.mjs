@@ -202,7 +202,7 @@ export function xlsText(bytes) {
   const file = readCompoundFile(bytes);
   const book = file.stream('Workbook');
   if (!book) {
-    if (file.has('Book')) throw new StudioError('OLD_FORMAT', 'uses a pre-1997 Excel format that Studio cannot read.');
+    if (file.has('Book')) throw new StudioError('OLD_FORMAT', 'is from a very old version of Excel that Studio cannot read.');
     throw damaged();
   }
   const records = [];

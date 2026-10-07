@@ -5,6 +5,7 @@
 // template with a script-free Content-Security-Policy and a provenance footer.
 import { asList, asText, parseJsonObject, plural, structuredPrompt, StudioError } from './core.mjs';
 import { FONT_STACK } from './font.mjs';
+import { provenanceLine, sourceNamesOf } from './provenance.mjs';
 
 const SECTIONS = 10;
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
@@ -22,8 +23,7 @@ section { border-top: 1px solid var(--line); padding-top: 0.4rem; }
 footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.85rem; }`;
 
 export function webpageMeta(record) {
-  const { providerID, id, variant } = record.model;
-  return { source: record.source.path, model: `${providerID}/${id}${variant ? `#${variant}` : ''}`, createdAt: record.createdAt };
+  return { source: sourceNamesOf(record), createdAt: record.createdAt };
 }
 
 // Every model value is escaped into a fixed template; the page can carry no script.
@@ -52,7 +52,7 @@ ${CSS}
 <main>
 <h1>${escapeHtml(page.title)}</h1>
 ${sections}
-<footer>Generated from ${escapeHtml(meta.source)} with ${escapeHtml(meta.model)} on ${escapeHtml(String(meta.createdAt).slice(0, 10))}. Review it against the source before relying on it.</footer>
+<footer>${escapeHtml(provenanceLine(meta.source, meta.createdAt))}</footer>
 </main>
 </body>
 </html>
@@ -94,8 +94,8 @@ export const webpage = Object.freeze({
     const sections = usable.slice(0, SECTIONS);
     if (!sections.length) throw new StudioError('EMPTY_RESULT', 'The model returned no usable page sections. Nothing was saved; regenerate explicitly.');
     const notes = [];
-    if (usable.length < offered.length) notes.push(`Omitted ${plural(offered.length - usable.length, 'section')} without paragraph text.`);
-    if (usable.length > SECTIONS) notes.push(`The model returned ${usable.length} usable sections; this build keeps the first ${SECTIONS}.`);
+    if (usable.length < offered.length) notes.push(`Left out ${plural(offered.length - usable.length, 'empty section')}.`);
+    if (usable.length > SECTIONS) notes.push(`Kept the first ${SECTIONS} of ${usable.length} sections.`);
     const title = asText(spec.title) || 'Web page';
     const lines = [`# ${title}`];
     for (const section of sections) {

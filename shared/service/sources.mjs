@@ -18,9 +18,9 @@ const FILE_BYTES = 25 * 1024 * 1024;
 // ---------- plain text and markup ----------
 
 function decodeText(bytes) {
-  if (bytes.includes(0)) throw new StudioError('NOT_TEXT', 'is not a plain text file.');
+  if (bytes.includes(0)) throw new StudioError('NOT_TEXT', 'is not readable as text.');
   try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/^\uFEFF/, ''); }
-  catch { throw new StudioError('NOT_TEXT', 'is not UTF-8 text.'); }
+  catch { throw new StudioError('NOT_TEXT', 'is in a text format Studio cannot read.'); }
 }
 
 // Keeps the readable text of a page: scripts and styles go, block elements become line breaks.
@@ -169,7 +169,7 @@ async function pdfText(bytes) {
       page.cleanup();
     }
     const text = pages.filter(Boolean).map((page, index) => `Page ${index + 1}\n${page}`).join('\n\n').trim();
-    if (!text) throw new StudioError('NO_TEXT', 'has no text Studio can read (it may be a scan).');
+    if (!text) throw new StudioError('NO_TEXT', 'has no text Studio can read; it may be a scanned picture.');
     return text;
   } finally {
     await task.destroy();
@@ -197,8 +197,8 @@ async function projectFile(directory, relative) {
   if (!inside || inside.startsWith('..') || path.isAbsolute(inside)) throw new StudioError('BAD_SOURCE', 'is outside this project.');
   const info = await fs.lstat(target).catch(() => null);
   if (!info) throw new StudioError('MISSING_SOURCE', 'no longer exists.');
-  if (info.isSymbolicLink() || !info.isFile()) throw new StudioError('BAD_SOURCE', 'is not an ordinary file.');
-  if (info.size > FILE_BYTES) throw new StudioError('FILE_TOO_LARGE', `is larger than ${FILE_BYTES / 1024 / 1024} MB.`);
+  if (info.isSymbolicLink() || !info.isFile()) throw new StudioError('BAD_SOURCE', 'is a shortcut or a folder, not a file.');
+  if (info.size > FILE_BYTES) throw new StudioError('FILE_TOO_LARGE', `is too big (over ${FILE_BYTES / 1024 / 1024} MB).`);
   return { target, info };
 }
 
@@ -207,7 +207,7 @@ const cache = new Map();
 
 export async function readSource(directory, relative) {
   const kind = sourceKind(relative);
-  if (!kind) throw new StudioError('BAD_SOURCE', 'is not a supported file type.');
+  if (!kind) throw new StudioError('BAD_SOURCE', 'is a kind of file Studio cannot read.');
   const { target, info } = await projectFile(directory, relative);
   const key = `${target}|${info.size}|${info.mtimeMs}`;
   if (!cache.has(key)) {

@@ -45,7 +45,7 @@ test('flashcards keep usable cards and disclose omissions and the 20-card cap', 
   const cards = Array.from({ length: 22 }, (_, index) => ({ front: `Question ${index}?`, back: `Answer ${index}.` }));
   const built = flashcards.build(`Here is the deck:\n\`\`\`json\n${JSON.stringify({ title: 'Deck', cards: [...cards, { front: 'No back' }] })}\n\`\`\``);
   assert.equal(built.artifact.cards.length, 20);
-  assert.deepEqual(built.notes, ['Omitted 1 incomplete card from the model.', 'The model returned 22 usable cards; this build keeps the first 20.']);
+  assert.deepEqual(built.notes, ['Left out 1 incomplete card.', 'Kept the first 20 of 22 cards.']);
   assert.throws(() => flashcards.build('{"title":"Deck","cards":[]}'), { code: 'EMPTY_RESULT' });
   assert.throws(() => flashcards.build('I cannot help with that.'), { code: 'BAD_OUTPUT' });
   assert.deepEqual(flashcards.validateProgress(built.artifact, { position: 3, known: [5, 1] }), { position: 3, known: [1, 5] });
@@ -59,7 +59,7 @@ test('quiz keeps only four distinct options with one valid answer', () => {
     { ...question, options: ['A', 'B', 'C'] }, { ...question, answer: 4 },
   ] }));
   assert.deepEqual(built.artifact.questions.map((item) => item.answer), [1, 2]);
-  assert.match(built.notes[0], /^Omitted 3 questions/);
+  assert.match(built.notes[0], /^Left out 3 questions/);
   assert.match(built.markdown, /_Answer: B\. Second_/);
   assert.deepEqual(quiz.validateProgress(built.artifact, { answers: [0, null] }), { answers: [0, null] });
   assert.throws(() => quiz.validateProgress(built.artifact, { answers: [4, null] }), { code: 'BAD_PROGRESS' });
@@ -75,8 +75,8 @@ test('mind map discloses unlabeled, over-deep and excess branches', () => {
   assert.match(built.markdown, /^# Map\n- Level 1\n {2}- Level 2\n/);
   assert.ok(built.markdown.includes('          - Level 6') && !built.markdown.includes('Level 7'));
   assert.deepEqual(built.notes, [
-    'Omitted 2 nodes under unlabeled entries.', 'Omitted 1 node deeper than 6 levels.',
-    'The model returned 11 main branches; this build keeps the first 10.',
+    'Left out 2 ideas under blank entries.', 'Left out 1 idea more than 6 levels deep.',
+    'Kept the first 10 of 11 main branches.',
   ]);
 });
 
@@ -85,7 +85,7 @@ test('web page escapes every model value and carries no executable markup', () =
     { heading: 'A "quoted" <b>heading</b>', paragraphs: ['x <img src=x onerror=alert(1)>', ''] }, { heading: 'Empty', paragraphs: [] },
   ] }));
   assert.equal(built.artifact.sections.length, 1);
-  assert.deepEqual(built.notes, ['Omitted 1 section without paragraph text.']);
+  assert.deepEqual(built.notes, ['Left out 1 empty section.']);
   const html = buildWebPage(built.artifact, { source: 'SPEC.md', model: 'unit-test/controlled', createdAt: '2026-10-06T00:00:00.000Z' });
   assert.equal(/<(script|img|b)\b/i.test(html), false);
   assert.ok(html.includes('&lt;script&gt;alert(1)&lt;/script&gt;') && html.includes('&quot;quoted&quot;'));

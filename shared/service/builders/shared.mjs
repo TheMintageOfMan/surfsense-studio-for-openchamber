@@ -1,14 +1,12 @@
 // Helpers shared by the file builders.
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
+import { provenanceLine, sourceNamesOf } from '../../common/provenance.mjs';
 
 export const GENERATOR = 'SurfSense Studio for OpenChamber v2';
 
+// What the builders may print about a file's origin: plain source names and the date only.
 export function fileMeta(record) {
-  const { providerID, id, variant } = record.model;
-  return {
-    title: record.title, source: record.source.path, createdAt: new Date(record.createdAt),
-    model: `${providerID}/${id}${variant ? `#${variant}` : ''}`, notes: record.notes ?? [],
-  };
+  return { title: record.title, source: sourceNamesOf(record), createdAt: new Date(record.createdAt), notes: record.notes ?? [] };
 }
 
 // The Office libraries stamp the current time into docProps/core.xml and every ZIP entry.
@@ -30,4 +28,4 @@ export function normalizeZip(bytes, createdAt) {
 }
 
 // One provenance line, the same in every file type.
-export const provenance = (meta) => `Generated from ${meta.source} with ${meta.model} on ${meta.createdAt.toISOString().slice(0, 10)} by ${GENERATOR}. Review it against the source before relying on it.`;
+export const provenance = (meta) => provenanceLine(meta.source, meta.createdAt);

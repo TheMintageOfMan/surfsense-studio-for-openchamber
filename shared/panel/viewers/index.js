@@ -15,7 +15,7 @@ export function renderViewer(container, record, api) {
   container.replaceChildren();
   const render = VIEWERS[record.format];
   if (!render) {
-    container.textContent = 'This build cannot display this format.';
+    container.textContent = 'Studio cannot show this here.';
     return { dispose() {} };
   }
   return render(container, record, api);

@@ -50,7 +50,7 @@ test('every supported file type yields its text, and unreadable files say why', 
     const text = await readSource(root, name);
     for (const word of words) assert.ok(text.includes(word), `${name}: ${word}`);
   }
-  assert.deepEqual((await readSourceOrExplain(root, 'binary.txt')).error, { code: 'NOT_TEXT', message: 'binary.txt is not a plain text file.' });
+  assert.deepEqual((await readSourceOrExplain(root, 'binary.txt')).error, { code: 'NOT_TEXT', message: 'binary.txt is not readable as text.' });
   assert.equal((await readSourceOrExplain(root, 'empty.md')).error.code, 'NO_TEXT');
   assert.equal((await readSourceOrExplain(root, 'gone.md')).error.code, 'MISSING_SOURCE');
   assert.equal((await readSourceOrExplain(root, 'program.exe')).error.code, 'BAD_SOURCE');
@@ -68,7 +68,7 @@ test('the source list measures files, skips tooling folders and boilerplate, and
   assert.equal(byPath['docs/more.txt'].characters, 'Nested notes.'.length);
   assert.equal(byPath['report.pdf'].kind, 'pdf');
   assert.ok(byPath['report.pdf'].characters > 0);
-  assert.equal(byPath['binary.txt'].error, 'is not a plain text file.');
+  assert.equal(byPath['binary.txt'].error, 'is not readable as text.');
 });
 
 test('a file outside the project or behind a link is never read', async () => {
@@ -101,7 +101,7 @@ test('jobs read files by path in the service, record their identity, and name a 
   let calls = 0;
   await jobs.start(root, bad, async () => { calls += 1; return { text: reply }; });
   const failed = await settle(jobs, root, bad.id);
-  assert.equal(failed.error.message, 'binary.txt is not a plain text file.');
+  assert.equal(failed.error.message, 'binary.txt is not readable as text.');
   assert.equal(calls, 0, 'no model call when a source cannot be read');
 });
 
@@ -145,7 +145,7 @@ test('a job can use the chat alone, labelled for the model as the current conver
   await jobs.start(root, input, async (text) => { prompt = text; return { text: reply }; }, { connection });
   const record = await settle(jobs, root, input.id);
   assert.equal(record.status, 'completed', JSON.stringify(record.error));
-  assert.ok(prompt.includes('"path":"the current chat conversation"') && prompt.includes('Question 0'));
+  assert.ok(prompt.includes('"name":"this chat"') && prompt.includes('Question 0'));
   assert.ok(!prompt.includes(CHAT_SOURCE));
   assert.equal(record.chat.how, 'full');
   assert.equal(record.source.path, 'this chat');
