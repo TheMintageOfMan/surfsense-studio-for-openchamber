@@ -1,9 +1,9 @@
 {
   "name": "surfsense-studio-for-openchamber",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "SurfSense Studio for OpenChamber v2 - Summary development build",
+  "description": "SurfSense Studio for OpenChamber v2 - text formats development build",
   "engines": { "node": ">=22" },
   "scripts": {
     "build": "node scripts/build.mjs",
@@ -13,6 +13,8 @@
   "dependencies": {
     "@openchamber/sdk": "2.1.1",
     "dompurify": "3.4.16",
+    "markmap-common": "0.18.9",
+    "markmap-view": "0.18.12",
     "marked": "18.1.0"
   },
   "devDependencies": {

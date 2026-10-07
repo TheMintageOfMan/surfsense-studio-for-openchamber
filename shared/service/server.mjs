@@ -1,7 +1,8 @@
 import http from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
-import { LIMITS, modelKey, requireJobId, StudioError, validateSummary } from '../common/summary.mjs';
-import { SummaryJobs } from './jobs.mjs';
+import { LIMITS, modelKey, requireJobId, StudioError } from '../common/core.mjs';
+import { validateJob } from '../common/formats.mjs';
+import { StudioJobs } from './jobs.mjs';
 import { projectDirectory } from './storage.mjs';
 
 function authorized(header, token) {
@@ -30,7 +31,7 @@ const json = (response, status, value) => {
   response.end(JSON.stringify(value));
 };
 
-export function createStudioServer({ token, gateway, jobs = new SummaryJobs() }) {
+export function createStudioServer({ token, gateway, jobs = new StudioJobs() }) {
   const server = http.createServer(async (request, response) => {
     if (!authorized(request.headers.authorization, token)) {
       json(response, 401, { error: { code: 'UNAUTHORIZED', message: 'Use the approved OpenChamber service bridge.' } });
@@ -39,7 +40,7 @@ export function createStudioServer({ token, gateway, jobs = new SummaryJobs() })
     try {
       const url = new URL(request.url, 'http://127.0.0.1');
       if (request.method === 'GET' && url.pathname === '/health') {
-        json(response, 200, { ok: true, version: '0.1.0', runtime: process.version, platform: process.platform, arch: process.arch });
+        json(response, 200, { ok: true, version: '0.2.0', runtime: process.version, platform: process.platform, arch: process.arch });
         return;
       }
       const body = request.method === 'POST' ? await readBody(request) : null;
@@ -57,7 +58,7 @@ export function createStudioServer({ token, gateway, jobs = new SummaryJobs() })
         return;
       }
       if (request.method === 'POST' && url.pathname === '/jobs') {
-        const input = validateSummary(body);
+        const input = validateJob(body);
         const connection = await gateway.prepare(context);
         if (!connection.models.some((model) => model.key === modelKey(input.model))) {
           throw new StudioError('NO_MODEL', 'This model is no longer available. Refresh the connection and select a model.');
@@ -66,7 +67,7 @@ export function createStudioServer({ token, gateway, jobs = new SummaryJobs() })
         json(response, 202, jobs.public(record));
         return;
       }
-      const match = url.pathname.match(/^\/jobs\/([^/]+)(?:\/(cancel|save))?$/);
+      const match = url.pathname.match(/^\/jobs\/([^/]+)(?:\/(cancel|save|progress))?$/);
       if (match) {
         const id = requireJobId(match[1]);
         if (request.method === 'GET' && !match[2]) {
@@ -79,6 +80,10 @@ export function createStudioServer({ token, gateway, jobs = new SummaryJobs() })
         }
         if (request.method === 'POST' && match[2] === 'save') {
           json(response, 200, await jobs.save(directory, id, body.filename));
+          return;
+        }
+        if (request.method === 'POST' && match[2] === 'progress') {
+          json(response, 200, await jobs.saveProgress(directory, id, body.progress));
           return;
         }
       }

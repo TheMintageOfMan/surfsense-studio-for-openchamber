@@ -11,8 +11,13 @@
     <header>
       <h1>SurfSense Studio</h1>
       <p class="muted">for OpenChamber v2</p>
-      <span class="build-label">Summary development build - 1 of 12 formats</span>
+      <span id="build-label" class="build-label">Development build</span>
     </header>
+    <section aria-labelledby="formats-heading">
+      <h2 id="formats-heading">Format</h2>
+      <div id="formats" class="formats" role="group" aria-label="Studio formats"></div>
+      <p id="format-hint" class="muted small" role="status"></p>
+    </section>
     <section aria-labelledby="connection-heading">
       <h2 id="connection-heading">Connection</h2>
       <p id="project" class="path muted"></p>
@@ -32,7 +37,7 @@
       <p class="muted small">Generation sends the selected source to the chosen model and may incur provider charges. Cancellation requests interruption; work already started may still be billed.</p>
     </section>
     <section aria-labelledby="history-heading">
-      <h2 id="history-heading">Saved summaries</h2>
+      <h2 id="history-heading">Saved artifacts</h2>
       <div id="history"></div>
       <p id="history-count" class="muted"></p>
       <div id="more"></div>
@@ -40,7 +45,8 @@
     <section id="result-section" hidden aria-labelledby="result-heading">
       <h2 id="result-heading">Preview</h2>
       <p id="result-meta" class="muted"></p>
-      <article id="preview" class="markdown"></article>
+      <ul id="notes" class="notes" hidden></ul>
+      <div id="preview"></div>
       <div id="filename"></div>
       <div id="save"></div>
       <p id="save-status" role="status"></p>
