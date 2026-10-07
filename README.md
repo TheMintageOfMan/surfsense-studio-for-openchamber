@@ -10,4 +10,4 @@ https://github.com/MODSetter/SurfSense
 https://github.com/openchamber/openchamber
 
 ## Idea
-- Incorporate the Studio from SurfSense for OpenChamber v2.
+- Incorporate the Studio from SurfSense into OpenChamber v2.
